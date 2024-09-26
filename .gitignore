@@ -148,3 +148,8 @@ bin/cdf2bin
 bin/cvrtclm
 bin/manage2js
 bin/headersize
+/.vs
+*.sln
+*.vcxproj
+*.filters
+*.user
