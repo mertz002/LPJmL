@@ -176,3 +176,8 @@ bin/cdf2grid
 
 # test build folder
 src/test/build
+/.vs
+*.sln
+*.vcxproj
+*.filters
+*.user
