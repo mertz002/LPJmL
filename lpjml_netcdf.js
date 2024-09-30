@@ -189,14 +189,15 @@ ID                         Fmt                    filename
 
 #ifndef FROM_RESTART
 
-"nspinup" : 5000,  /* spinup years */
+"nspinup" : 10,  /* spinup years */
 "nspinyear" : 30,  /* cycle length during spinup (yr) */
 "firstyear": 1901, /* first year of simulation */
 "lastyear" : 1901, /* last year of simulation */
-"restart" : false, /* do not start from restart file */
-"write_restart" : true, /* create restart file: the last year of simulation=restart-year */
+"restart" : true, /* do not start from restart file */
+"write_restart" : false, /* create restart file: the last year of simulation=restart-year */
 "write_restart_filename" : "restart/restart_1840_nv_stdfire.lpj", /* filename of restart file */
-"restart_year": 1840 /* write restart at year */
+"restart_filename" : "restart/restart_1840_nv_stdfire.lpj",
+"restart_year": 1900 /* write restart at year */
 
 #else
 
