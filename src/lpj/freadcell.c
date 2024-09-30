@@ -37,6 +37,7 @@ Bool freadcell(FILE *file,             /**< File pointer to binary file */
   if(config->river_routing)
   {
     freadreal1(&cell->discharge.dmass_lake,swap,file);
+    freadreal1(&cell->discharge.dmass_gw, swap, file);
     freadreal1(&cell->discharge.dfout,swap,file);
     freadreal1(&cell->discharge.dmass_river,swap,file);
     freadreal1(&cell->discharge.dmass_sum,swap,file);
