@@ -221,7 +221,8 @@ void iterateyear(Outputfile *output,  /**< Output file data */
     }
     if(config->river_routing)
     {
-      grid[cell].output.surface_storage=grid[cell].discharge.dmass_lake+grid[cell].discharge.dmass_river;
+      grid[cell].output.surface_storage = grid[cell].discharge.dmass_lake + grid[cell].discharge.dmass_river + grid[cell].discharge.dmass_gw;
+      
       if(grid[cell].ml.dam)
         grid[cell].output.surface_storage+=reservoir_surface_storage(grid[cell].ml.resdata);
     }
