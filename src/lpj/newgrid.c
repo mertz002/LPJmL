@@ -406,6 +406,7 @@ static Cell *newgrid2(Config *config,          /* Pointer to LPJ configuration *
     grid[i].discharge.gir=grid[i].discharge.irrig_unmet=0.0;
     grid[i].discharge.act_irrig_amount_from_reservoir=0.0;
     grid[i].discharge.withdrawal=grid[i].discharge.wd_demand=0.0;
+    grid[i].discharge.dmass_gw = 0.0;
     grid[i].discharge.wd_neighbour=grid[i].discharge.wd_deficit=0.0;
     grid[i].discharge.mfout=grid[i].discharge.mfin=0.0;
     grid[i].discharge.dmass_sum=0.0;

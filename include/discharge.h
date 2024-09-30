@@ -39,6 +39,7 @@ typedef struct
   Real dmass_lake_max;
   Real dmass_river;
   Real dmass_sum;         /**< sum of dmass_lake, dmass_new, dmass_queue (m3) */
+  Real dmass_gw;
   Real drunoff;           /**< daily runoff (mm) */
   Real dfout;
   Real fout;
