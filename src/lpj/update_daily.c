@@ -18,6 +18,9 @@
 #include "natural.h"
 #include "agriculture.h"
 
+#define GWCOEFF 100 /**< groundwater outflow coefficient (average amount of release time in reservoir) */
+
+
 void update_daily(Cell *cell,            /**< cell pointer           */
                   Real co2,              /**< atmospheric CO2 (ppmv) */
                   Real popdensity,       /**< population density (capita/km2) */
@@ -35,6 +38,7 @@ void update_daily(Cell *cell,            /**< cell pointer           */
   int p,s;
   Real melt=0,eeq,par,daylength,beta;
   Real gp_stand,gp_stand_leafon,runoff,snowrunoff;
+  Real fout_gw; // local variable for groundwater outflow (baseflow)
   Real fpc_total_stand;
   Real gtemp_air;  /* value of air temperature response function */
   Real gtemp_soil[NSOILLAYER]; /* value of soil temperature response function */
@@ -178,6 +182,15 @@ void update_daily(Cell *cell,            /**< cell pointer           */
   else
     cell->output.mlaketemp=config->missing_value;
 #endif
+
+  // outflow from groundwater reservoir to river
+  if (cell->discharge.dmass_gw > 0)
+  {
+      fout_gw = cell->discharge.dmass_gw / GWCOEFF;
+      cell->discharge.drunoff += fout_gw / cell->coord.area;
+      cell->discharge.dmass_gw -= fout_gw;
+      cell->output.mseepage += fout_gw / cell->coord.area;
+  }
 
   cell->output.mrunoff+=cell->discharge.drunoff;
   cell->output.daily.runoff+=cell->discharge.drunoff;
