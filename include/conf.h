@@ -32,6 +32,8 @@
 #define LIM_IRRIGATION 1
 #define POT_IRRIGATION 2
 #define ALL_IRRIGATION 3
+#define GROUNDWATER_IRRIG 1
+#define NO_GROUNDWATER_IRRIG 0 // Flag to allow for irrigation from groundwater reservoir (sustainable gw irrigation)
 #define GRASS_HARVEST_OPTIONS 1 
 #define NO_GRASS_HARVEST_OPTIONS 0 
 #define GRASS_FIXED_PFT 1 

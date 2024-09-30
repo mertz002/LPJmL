@@ -52,6 +52,7 @@ typedef struct
   Real wd_deficit;        /**< withdrawal demand that can not be fulfilled locally */
   Real wd_neighbour;      /**< sum of withdrawal requests from neighbour cells */
   Real withdrawal;        /**< amount of water withdrawn from river */
+  Real withdrawal_gw;
   Real irrig_unmet;       /**< amount of irrigation water not met by local sources or neighbor cell */
   Real wateruse;          /**< water consumption for industry,household and livestock, read from input file if specified in lpjml.conf */
   Queue queue;            /**< Delay queue */

@@ -161,6 +161,7 @@ typedef struct
   Pnet *irrig_res;
   Pnet *irrig_res_back;
   int withlanduse;
+  Bool groundwater_irrig; /**< Irrigation from groundwater reservoir */
   Bool reservoir;
   int irrig_scenario; /**< irrigation scenario (NO:0, LIM:1, POT:2, ALL:3, IRRIG on RAINFED: 4) */
   Bool rw_manage;     /**< rain-water management enabled: reduced soil evaporation + rain-water harvesting */
