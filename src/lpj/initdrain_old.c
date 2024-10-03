@@ -201,7 +201,6 @@ static Bool initirrig(Cell grid[],    /* Cell grid             */
   {
     fputs("ERROR140: Cannot initialize irrigation network.\n",stderr);
     fflush(stderr);
-    free(index);
     closeinput(irrig_file,config->neighb_irrig_filename.fmt);
     return TRUE;
   }
@@ -246,7 +245,7 @@ static Bool initirrig(Cell grid[],    /* Cell grid             */
     /* add connection to network */
     rc=pnet_addconnect(config->irrig_neighbour,
                        cell+config->startgrid-config->firstgrid,
-                       neighb_irrig-config->firstgrid);
+                       ((swap) ? swapint(neighb_irrig) : neighb_irrig)-config->firstgrid);
     if(rc)
     {
       fprintf(stderr,"ERROR142: Cannot add irrigation neighbour %d of cell %d: %s.\n",
@@ -353,30 +352,26 @@ static Bool initriver(Cell grid[],Config *config)
         free(index);
         return TRUE;
       }
-      //if(r.index<0 ||  r.index>=n)
-      if (r.index < -1 || r.index >= n) //hb may 2024
+      if(r.index<0 ||  r.index>=n)
       {
-        fprintf(stderr,"ERROR203: Invalid drainage %d of cell %d (%s).\n",
+        fprintf(stderr,"ERROR203: Invalid irrigation neighbour %d of cell %d (%s).\n",
                 r.index,cell+config->startgrid,sprintcoord(line,&grid[cell].coord));
         closeinput_netcdf(drainage.cdf);
         closeinput_netcdf(river.cdf);
         free(index);
         return TRUE;
       }
-      if (r.index > 0)
+      r.index=index[r.index];
+      if(r.index==-1)
       {
-          r.index = index[r.index];
-          //if (r.index == -1) //HB commented out, because cells can have -1 (or -9 or another negative number)
-          //{
-          //    fprintf(stderr, "ERROR203: Invalid drainage %d of cell %d (%s).\n",
-          //        r.index, cell + config->startgrid, sprintcoord(line, &grid[cell].coord));
-          //    closeinput_netcdf(drainage.cdf);
-          //    closeinput_netcdf(river.cdf);
-          //    free(index);
-          //    return TRUE;
-          //}
+        fprintf(stderr,"ERROR203: Invalid irrigation neighbour %d of cell %d (%s).\n",
+                r.index,cell+config->startgrid,sprintcoord(line,&grid[cell].coord));
+        closeinput_netcdf(drainage.cdf);
+        closeinput_netcdf(river.cdf);
+        free(index);
+        return TRUE;
       }
-      if(readinput_netcdf(river.cdf,&len,&grid[cell].coord))//hb may 2024
+      if(readinput_netcdf(drainage.cdf,&len,&grid[cell].coord))
       {
         closeinput_netcdf(drainage.cdf);
         closeinput_netcdf(river.cdf);
