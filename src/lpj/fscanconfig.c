@@ -262,9 +262,12 @@ Bool fscanconfig(Config *config,    /**< LPJ configuration */
       }
       if(config->laimax_interpolate==CONST_LAI_MAX)
         fscanreal2(file,&config->laimax,"laimax");
-      if(config->river_routing)
-        fscanbool2(file,&config->reservoir,"reservoir");
-      grassfix=FALSE;
+      if (config->river_routing) {
+          fscanbool2(file, &config->reservoir, "reservoir");
+          fscanbool(file, &config->groundwater_irrig, "groundwater_irrigation", TRUE, verbose);
+
+      }
+              grassfix=FALSE;
       if(fscanbool(file,&grassfix,"grassland_fixed_pft",TRUE,verbose))
         return TRUE;
     }

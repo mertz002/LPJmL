@@ -256,6 +256,8 @@ void fprintconfig(FILE *file,           /**< File pointer to text output file */
     len=printsim(file,len,&count,"wood fires");
   if(config->reservoir)
     len=printsim(file,len,&count,"dam reservoirs");
+  if (config->groundwater_irrig)
+      len = printsim(file, len, &count, "groundwater irrigation");
   if(config->wateruse)
     len=printsim(file,len,&count,(config->wateruse==ALL_WATERUSE) ? "always water use" : "water use");
   if(count)
