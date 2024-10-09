@@ -19,8 +19,8 @@
 #include "grass.h"
 
 void light(Stand *stand,        /**< Pointer to stand */
-           const Real fpc_inc[], /**< FPC increment for each established PFT */
-           const Config *config  /**< LPJmL configuration */
+           int ntypes,          /**< number of PFT classes */
+           const Real fpc_inc[] /**< FPC increment for each established PFT */
           )
 
 {
@@ -38,9 +38,9 @@ void light(Stand *stand,        /**< Pointer to stand */
   ntree=0;
   fpc_all=0;
   f=g=h=epsilon;
-  fpc_total=newvec(Real,config->ntypes);
+  fpc_total=newvec(Real,ntypes);
   check(fpc_total);
-  fpc_sum(fpc_total,config->ntypes,&stand->pftlist);
+  fpc_sum(fpc_total,ntypes,&stand->pftlist);
 
   foreachpft(pft,p,&stand->pftlist)
     if(istree(pft))
@@ -53,47 +53,46 @@ void light(Stand *stand,        /**< Pointer to stand */
     switch(getpftpar(pft,type))
     {
       case TREE:
-        if (fpc_total[TREE]>param.fpc_tree_max)
+        if (fpc_total[TREE]>FPC_TREE_MAX)
         {
           if(ntree)
-            f=(fpc_total[TREE]-param.fpc_tree_max)/ntree;
+            f=(fpc_total[TREE]-FPC_TREE_MAX)/ntree;
           if(fpc_inc_tree>epsilon)
-            g=(fpc_total[TREE]-param.fpc_tree_max)/fpc_inc_tree;
+            g=(fpc_total[TREE]-FPC_TREE_MAX)/fpc_inc_tree;
           excess =(fpc_inc_tree>0.0) ?  g*fpc_inc[p] : f;
 
           /* Reduce individual density (and thereby gridcell-level biomass)*/
           /* so that total tree FPC reduced to 'fpc_tree_max'*/
           /* changed by Werner von Bloh to avoid FPE */
 
-          light_tree(&stand->soil.litter,pft,excess,config);
+          light_tree(&stand->soil.litter,pft,excess);
         }
         break;
 
       case GRASS:
-        if(fpc_total[GRASS]>(1.0-min(fpc_total[TREE],param.fpc_tree_max)))
+        if(fpc_total[GRASS]>(1.0-min(fpc_total[TREE],FPC_TREE_MAX)))
         {
-          h=(min(fpc_total[TREE],param.fpc_tree_max)+fpc_total[GRASS]-1.0)/fpc_total[GRASS];
+          h=(min(fpc_total[TREE],FPC_TREE_MAX)+fpc_total[GRASS]-1.0)/fpc_total[GRASS];
           excess=h*pft->fpc;
-          light_grass(&stand->soil.litter,pft,excess);
+          light_grass(&stand->soil.litter,pft,excess,fpc_total[GRASS]);
         }
         break;
     } /* of 'switch' */
   }  /* of 'foreachpft' */
 
-  fpc_all=fpc_sum(fpc_total,config->ntypes,&stand->pftlist);
+  fpc_all=fpc_sum(fpc_total,ntypes,&stand->pftlist);
   i=0;
-  while(fpc_all>1 && i<50)
-  {
+  while(fpc_all>1 && i<50){
     foreachpft(pft,p,&stand->pftlist)
     {
       if(pft->par->type==GRASS)
       {
-        h=(min(fpc_total[TREE],param.fpc_tree_max)+fpc_total[GRASS]-1.0)/fpc_total[GRASS];
-        excess=h*pft->fpc;
-        light_grass(&stand->soil.litter,pft,excess);
+          h=(min(fpc_total[TREE],FPC_TREE_MAX)+fpc_total[GRASS]-1.0)/fpc_total[GRASS];
+          excess=h*pft->fpc;
+          light_grass(&stand->soil.litter,pft,excess,fpc_total[GRASS]);
       }
     }
-    fpc_all=fpc_sum(fpc_total,config->ntypes,&stand->pftlist)-epsilon;
+    fpc_all=fpc_sum(fpc_total,ntypes,&stand->pftlist)-epsilon;
     i++;
   }
   free(fpc_total);

@@ -16,42 +16,33 @@
 
 #include "lpj.h"
 
-#define LINES_PER_HEADER 25
+#define LINES_PER_HEADER 25 
 
 void fprintflux(FILE *file,          /**< Output file pointer */
                 Flux flux,           /**< Carbon and water fluxes */
                 Real cflux_total,    /**< Total carbon flux  (gC) */
                 int year,            /**< Simulation year (AD) */
-                const Config *config /**< LPJ configuration */
+                const Config *config /**< LPJmL configuration */
                )
 {
   int i,tabs;
-  Real convert;
-  if(config->ngridcell > 2) convert = 1e-15;
-    else convert = 1e-9;
   if((year<config->firstyear &&
-     (year-config->firstyear+config->nspinup) % LINES_PER_HEADER==0) ||
+     (year-config->firstyear+config->nspinup) % LINES_PER_HEADER==0) || 
      (year>=config->firstyear && (year-config->firstyear) % LINES_PER_HEADER==0))
   {
     /* print header */
     tabs=(config->fire) ? 4 : 3;
     if(config->withlanduse!=NO_LANDUSE)
-      tabs+=2;
+      tabs++;
     fputs("\n       ",file);
-    frepeatch(file,' ',(tabs*8-17)/2-1);
-    fprintf(file,"Carbon flux (%ctC/yr)",(convert==1e-15)  ? 'G' : 'k');
-    frepeatch(file,' ',(tabs*8-17)/2);
+    frepeatch(file,' ',(tabs*8-16)/2-1);
+    fputs("Carbon flux (GtC)",file);
+    frepeatch(file,' ',(tabs*8-16)/2);
     if(config->river_routing)
-      frepeatch(file,' ',(config->withlanduse==NO_LANDUSE) ? 13 : 17);
+      frepeatch(file,' ',(config->withlanduse==NO_LANDUSE) ? 16 : 20);
     else
-      frepeatch(file,' ',(config->withlanduse==NO_LANDUSE) ? 5 : 9);
-    fprintf(file,"Water (%sm3/yr)",(convert==1e-15)  ? "k" : "da");
-    if(config->with_nitrogen)
-    {
-      if(config->river_routing)
-        frepeatch(file,' ',(config->withlanduse==NO_LANDUSE) ? 1 : 5);
-      fprintf(file,"                Nitrogen (%cgN/yr)",(convert==1e-15)  ? 'T' : 'M');
-    }
+      frepeatch(file,' ',(config->withlanduse==NO_LANDUSE) ? 8 : 12);
+    fputs("Water (km3)",file);
     fputs("\n       ",file);
     frepeatch(file,'-',tabs*8-1);
     if(config->withlanduse!=NO_LANDUSE)
@@ -60,8 +51,6 @@ void fprintflux(FILE *file,          /**< Output file pointer */
       fputs(" --------------------------",file);
     if(config->river_routing)
       fputs("-----------",file);
-    if(config->with_nitrogen)
-      fputs(" --------------------------------",file);
     fputc('\n',file);
     if(year<config->firstyear)
       fputs("Spinup ",file);
@@ -71,15 +60,13 @@ void fprintflux(FILE *file,          /**< Output file pointer */
     if(config->fire)
       fputs(" fire   ",file);
     if(config->withlanduse!=NO_LANDUSE)
-      fputs(" harvest product",file);
-    fputs(" NBP    ",file);
-    fputs(" transp     evap    interc ",file);
+      fputs(" harvest",file);
+    fputs(" total  ",file);
+    fputs(" transp     evap    interc",file);
     if(config->withlanduse!=NO_LANDUSE)
-      fputs(" wd     ",file);
+      fputs("  wd",file);
     if(config->river_routing)
-      fputs(" discharge ",file);
-    if(config->with_nitrogen)
-      fputs(" nuptake ndemand  nlosses ninflux",file);
+      fputs((config->withlanduse!=NO_LANDUSE) ? "      discharge" : "   discharge",file);
     fputc('\n',file);
     fputs("------",file);
     for(i=0;i<tabs;i++)
@@ -89,25 +76,20 @@ void fprintflux(FILE *file,          /**< Output file pointer */
       fputs(" -------",file);
     if(config->river_routing)
       fputs(" ----------",file);
-    if(config->with_nitrogen)
-      fputs(" ------- -------- ------- -------",file);
     fputc('\n',file);
   }
   /* print data */
-  fprintf(file,"%6d %7.3f %7.3f",year,(flux.npp-flux.rh)*convert,flux.estab.carbon*convert);
+  fprintf(file,"%6d %7.3f %7.3f",year,flux.nep*1e-15,flux.estab*1e-15);
   if(config->fire)
-    fprintf(file," %7.3f",flux.fire.carbon*convert);
+    fprintf(file," %7.3f",flux.fire*1e-15);
   if(config->withlanduse!=NO_LANDUSE)
-    fprintf(file," %7.3f %7.3f",flux.harvest.carbon*convert,flux.product_turnover.carbon*convert);
-  fprintf(file," %7.3f",cflux_total*convert);
+    fprintf(file," %7.3f",flux.harvest*1e-15); 
+  fprintf(file," %7.3f",cflux_total*1e-15);
   fprintf(file," %10.1f %7.1f %7.1f",
-          flux.transp*convert*1000,flux.evap*convert*1000,flux.interc*convert*1000);
+          flux.transp*1e-12,flux.evap*1e-12,flux.interc*1e-12);
   if(config->withlanduse!=NO_LANDUSE)
-    fprintf(file," %7.1f",flux.wd*convert*1000);
+    fprintf(file," %7.1f",flux.wd*1e-12);
   if(config->river_routing)
-    fprintf(file," %10.1f",flux.discharge*convert*1000);
-  if(config->with_nitrogen)
-    fprintf(file," %7.1f %8.1f %7.1f %7.1f",flux.n_uptake*convert*1000,flux.n_demand*convert*1000,flux.n_outflux*convert*1000,
-            flux.influx.nitrogen*convert*1000);
+    fprintf(file," %10.1f",flux.discharge*1e-12);
   fputc('\n',file);
 } /* of 'fprintflux' */

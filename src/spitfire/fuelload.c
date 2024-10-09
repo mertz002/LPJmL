@@ -55,13 +55,13 @@ void fuelload(Stand *stand,
     for(j=1;j<NFUELCLASS;j++)
       fuel_gBiomass[j]+=c2biomass(litter->ag[i].trait.wood[j]);
   } */
-  /*TODO: simplify loop with new function litter_agtop_tree.c!! */
-  fuel_gBiomass[0]=c2biomass(litter_agtop_grass(&stand->soil.litter)+litter_agtop_tree(&stand->soil.litter,0));
+  /*TODO: simplify loop with new function litter_ag_tree.c!! */
+  fuel_gBiomass[0]=c2biomass(litter_ag_grass(&stand->soil.litter)+litter_ag_tree(&stand->soil.litter,0));
   for (i=1; i<NFUELCLASS;++i) /* 1hr fuel consumption not included*/
-    fuel_gBiomass[i]=c2biomass(litter_agtop_tree(&stand->soil.litter,i));
+    fuel_gBiomass[i]=c2biomass(litter_ag_tree(&stand->soil.litter,i));
 
   /* Dead fuel load, excluding 1000 hr fuels & convert to biomass (g m-2) */
-  dead_fuel = c2biomass(litter_agtop_sum_quick(&stand->soil.litter));
+  dead_fuel = c2biomass(litter_ag_sum_quick(&stand->soil.litter));
 
   /* Net fuel load (kg biomass)*/
   if (dead_fuel > 0)
@@ -76,11 +76,11 @@ void fuelload(Stand *stand,
     if(isgrass(pft))
     {
       grass=pft->data;
-      livegrass += c2biomass((grass->ind.leaf.carbon * pft->nind )* pft->phen);
+      livegrass += c2biomass((grass->ind.leaf * pft->nind )* pft->phen);
       if(pft->par->path==C3)
-        livefuel->pot_fc_lg_c3 = c2biomass(grass->ind.leaf.carbon*pft->nind*pft->phen);
+        livefuel->pot_fc_lg_c3 = c2biomass(grass->ind.leaf*pft->nind*pft->phen);
       else
-        livefuel->pot_fc_lg_c4 = c2biomass(grass->ind.leaf.carbon*pft->nind*pft->phen);
+        livefuel->pot_fc_lg_c4 = c2biomass(grass->ind.leaf*pft->nind*pft->phen);
     }
   }
   fuel->char_net_fuel = net_fuel +(1.0-MINER_TOT)*livegrass*1e-3;  /*in kg biomass */
@@ -89,10 +89,10 @@ void fuelload(Stand *stand,
   if(livegrass > 0)
   {
     /*TODO*/
-    mean_w=((stand->soil.w[0]*stand->soil.whcs[0]+stand->soil.w_fw[0]+stand->soil.wpwps[0]+
-            stand->soil.ice_depth[0]+stand->soil.ice_fw[0])/stand->soil.wsats[0]+
-            (stand->soil.w[1]*stand->soil.whcs[1]+stand->soil.w_fw[1]+stand->soil.wpwps[1]+
-            stand->soil.ice_depth[1]+stand->soil.ice_fw[1])/stand->soil.wsats[1])/2 ;
+    mean_w=((stand->soil.w[0]*stand->soil.par->whcs[0]+stand->soil.w_fw[0]+stand->soil.par->wpwps[0]+
+            stand->soil.ice_depth[0]+stand->soil.ice_fw[0])/stand->soil.par->wsats[0]+
+            (stand->soil.w[1]*stand->soil.par->whcs[1]+stand->soil.w_fw[1]+stand->soil.par->wpwps[1]+
+            stand->soil.ice_depth[1]+stand->soil.ice_fw[1])/stand->soil.par->wsats[1])/2 ;
     livefuel->dlm_livegrass = (0.0 > ((10.0/9.0) * mean_w -(1.0/9.0)) ?
                                 0 : ((10.0/9.0) * mean_w -(1.0/9.0)));
     ratio_c3_livegrass = livefuel->pot_fc_lg_c3 / livegrass;
@@ -111,12 +111,12 @@ void fuelload(Stand *stand,
   /* average fuel bulk density for live and dead fuel*/
   fbd_livefuel = fbd_c3_livegrass * ratio_c3_livegrass +
                  fbd_c4_livegrass * ratio_c4_livegrass;
-  fbd_deadfuel = stand->soil.litter.avg_fbd[NFUELCLASS]*litter_agtop_grass(&stand->soil.litter);
+  fbd_deadfuel = stand->soil.litter.avg_fbd[NFUELCLASS]*litter_ag_grass(&stand->soil.litter);
   for (i=0; i<NFUELCLASS-1;++i)
-    fbd_deadfuel += stand->soil.litter.avg_fbd[i]*litter_agtop_tree(&stand->soil.litter,i)*fbd_fac[i]; /*fbd_fac replaces FBD_A + FBD_B*/
+    fbd_deadfuel += stand->soil.litter.avg_fbd[i]*litter_ag_tree(&stand->soil.litter,i)*fbd_fac[i]; /*fbd_fac replaces FBD_A + FBD_B*/
   if(dead_fuel > epsilon)
     fbd_deadfuel /= biomass2c(dead_fuel);
-    /*fbd_deadfuel /= litter_agtop_sum_quick(&stand->soil.litter); */
+    /*fbd_deadfuel /= litter_ag_sum_quick(&stand->soil.litter); */
 
   if (dead_fuel > epsilon && livegrass > epsilon)
   {

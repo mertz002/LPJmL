@@ -15,19 +15,7 @@
 #include "lpj.h"
 #include "grass.h"
 
-Stocks fire_grass(Pft *pft,      /**< pointer to grass PFT */
-                  Real *fireprob /**< fire probability */
-                 )               /** \return burnt stock (gC/m2,gN/m2) */
+Real fire_grass(Pft * UNUSED(pft),Real * UNUSED(fireprob))
 {
-  Real disturb;
-  Stocks flux;
-  Pftgrass *grass;
-  grass=pft->data;
-  disturb=(1-pft->par->resist)**fireprob;
-  flux.carbon=disturb*pft->nind*(grass->ind.leaf.carbon+grass->excess_carbon);
-  flux.nitrogen=disturb*pft->nind*grass->ind.leaf.nitrogen;
-  grass->ind.leaf.carbon*=(1-disturb);
-  grass->ind.leaf.nitrogen*=(1-disturb);
-  grass->excess_carbon*=(1-disturb);
-  return flux;
+  return 0;
 } /* of 'fire_grass' */

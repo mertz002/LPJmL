@@ -16,24 +16,19 @@
 
 #include "lpj.h"
 
-FILE *openinputfile(Header *header,           /**< [out] pointer to file header */
-                    Bool *swap,               /**< [out] byte order has to be changed (TRUE/FALSE) */
-                    const Filename *filename, /**< [in]  file name */
-                    String headername,        /**< [out] clm file header string */
-                    const char *unit,         /**< unit expected or NULL */
-                    Type datatype,            /**< datatype for version 2 files */
-                    int *version,             /**< [inout] clm file version */
-                    size_t *offset,           /**< [in] offset in binary file */
-                    Bool isyear,              /**< [in] check for first year (TRUE/FALSE) */
-                    const Config *config      /**< [in] LPJmL configuration */
-                   )                          /** \return file pointer to open file or NULL */
+FILE *openinputfile(Header *header, /**< pointer to file header */
+                    Bool *swap, /**< byte order has to be changed (TRUE/FALSE) */
+                    const Filename *filename, /**< file name */
+                    String headername, /**< clm file header string */
+                    int *version, /**< clm file version */
+                    size_t *offset, /**< offset in binary file */
+                    const Config *config /**< grid configuration */
+                   )           /** \return file pointer to open file or NULL */
 {
   FILE *file;
-  char *var_unit=NULL;
-  long long size;
   if(filename->fmt==META)
   {
-    *version=CLM_MAX_VERSION+1;
+    *version=4;
     /* set default values for header */
     header->order=CELLYEAR;
     header->firstyear=config->firstyear;
@@ -41,25 +36,18 @@ FILE *openinputfile(Header *header,           /**< [out] pointer to file header 
     header->firstcell=0;
     header->ncell=config->nall;
     header->nbands=1;
-    header->nstep=1;
-    header->timestep=1;
     header->scalar=1;
-    header->datatype=datatype;
-    header->cellsize_lon=(float)config->resolution.lon;
-    header->cellsize_lat=(float)config->resolution.lat;
+    header->datatype=LPJ_SHORT;
+    header->cellsize_lon=config->resolution.lon;
+    header->cellsize_lat=config->resolution.lat;
     /* open description file */
-    file=openmetafile(header,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&var_unit,NULL,NULL,NULL,NULL,NULL,swap,offset,filename->name,isroot(*config));
+    file=openmetafile(header,swap,offset,filename->name,isroot(*config));
     if(file==NULL)
     {
       if(isroot(*config))
-        fprintf(stderr,"ERROR224: Cannot read JSON metafile '%s'.\n",filename->name);
+        fprintf(stderr,"ERROR224: Cannot read description file '%s'.\n",filename->name);
       return NULL;
     }
-    if(isroot(*config) && unit!=NULL && var_unit!=NULL && strcmp(unit,var_unit))
-      fprintf(stderr,"WARNING408: Unit '%s' in '%s' differs from unit '%s' in configuration file.\n",
-                      var_unit,filename->name,unit);
-    free(var_unit);
-
   /*  if(fabs(header->cellsize_lon-config->resolution.lon)>epsilon)
     {
       if(isroot(*config))
@@ -77,7 +65,7 @@ FILE *openinputfile(Header *header,           /**< [out] pointer to file header 
       return NULL;
     }*/
     if(header->firstyear>config->firstyear)
-      if(isyear && isroot(*config))
+      if(isroot(*config))
         fprintf(stderr,"WARNING004: First year in '%s'=%d greater than %d.\n",
                  filename->name,header->firstyear,config->firstyear);
     if(config->firstgrid<header->firstcell ||
@@ -108,16 +96,14 @@ FILE *openinputfile(Header *header,           /**< [out] pointer to file header 
     header->firstcell=0;
     header->ncell=config->nall;
     header->nbands=1;
-    header->nstep=1;
-    header->timestep=1;
     header->scalar=1;
-    header->datatype=datatype;
+    header->datatype=LPJ_SHORT;
     *version=0;
   }
   else
   {
     *version=(filename->fmt==CLM) ? READ_VERSION : 2;
-    if(freadanyheader(file,header,swap,headername,version,isroot(*config)))
+    if(freadanyheader(file,header,swap,headername,version))
     {
       if(isroot(*config))
         fprintf(stderr,"ERROR154: Invalid header in '%s'.\n",filename->name);
@@ -143,47 +129,17 @@ FILE *openinputfile(Header *header,           /**< [out] pointer to file header 
         return NULL;
       }
     }
-    if(*version>CLM_MAX_VERSION)
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR154: Unsupported version %d in '%s', must be less than %d.\n",
-                *version,filename->name,CLM_MAX_VERSION+1);
-      fclose(file);
-      return NULL;
-    }
     if(header->firstyear>config->firstyear)
-      if(isyear && isroot(*config))
+      if(isroot(*config))
         fprintf(stderr,"WARNING004: First year in '%s'=%d greater than %d.\n",
                 filename->name,header->firstyear,config->firstyear);
-    if(header->order!=CELLINDEX)
-    {
-      if(config->firstgrid<header->firstcell ||
-         config->nall+config->firstgrid>header->ncell+header->firstcell)
-      {
-        if(isroot(*config))
-          fprintf(stderr,"ERROR155: gridcells [%d,%d] in '%s' not in [%d,%d].\n",
-                  header->firstcell,header->ncell+header->firstcell-1,filename->name,
-                  config->firstgrid,config->nall+config->firstgrid-1);
-        fclose(file);
-        return NULL;
-      }
-    }
-    if(*version<3)
-      header->datatype=datatype;
-    /* check file size of CLM file */
-    if(header->order==CELLINDEX)
-      size=sizeof(int)*header->ncell+typesizes[header->datatype]*header->ncell*header->nbands*header->nstep*header->nyear+headersize(headername,*version);
-    else
-      size=typesizes[header->datatype]*header->ncell*header->nbands*header->nyear*header->nstep+headersize(headername,*version);
-    if(size!=getfilesizep(file))
+    if(config->firstgrid<header->firstcell ||
+       config->nall+config->firstgrid>header->ncell+header->firstcell)
     {
       if(isroot(*config))
-      {
-        fprintf(stderr,"ERROR264: File size of '%s' does not match header, differs by ",
-                filename->name);
-        fprintintf(stderr,llabs(size-getfilesizep(file)));
-        fputs(" bytes.\n",stderr);
-      }
+        fprintf(stderr,"ERROR155: gridcells [%d,%d] in '%s' not in [%d,%d].\n",
+                header->firstcell,header->ncell+header->firstcell-1,filename->name,
+                config->firstgrid,config->nall+config->firstgrid-1);
       fclose(file);
       return NULL;
     }

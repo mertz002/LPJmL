@@ -17,5 +17,5 @@
 
 Real fpar_tree(const Pft *pft)
 {
-  return pft->phen*pft->fpc*(1-pft->snowcover);
+  return pft->phen*pft->fpc;
 } /* of 'fpar_tree' */

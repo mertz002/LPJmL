@@ -28,7 +28,6 @@ Real leftmostzero(Real (*fcn)(Real,void *), /**< function to find leftmost zero 
                  )                          /** \return position of zero of function */
 {
   Real dx,xmid,swap;
-  int it;
   if(x2<x1)
   {
     swap=x1;
@@ -41,5 +40,5 @@ Real leftmostzero(Real (*fcn)(Real,void *), /**< function to find leftmost zero 
     for(xmid=x1+dx;(*fcn)(xmid,data)<0 && xmid<=x2-dx;xmid+=dx);  
   else
     for(xmid=x1+dx;(*fcn)(xmid,data)>0 && xmid<=x2-dx;xmid+=dx);
-  return bisect(fcn,xmid-dx,xmid,data,xacc,yacc,maxiter,&it);
+  return bisect(fcn,xmid-dx,xmid,data,xacc,yacc,maxiter);
 }  /* of 'leftmostzero' */ 

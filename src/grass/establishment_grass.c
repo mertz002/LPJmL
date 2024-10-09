@@ -15,11 +15,8 @@
 #include "lpj.h"
 #include "grass.h"
 
-Stocks establishment_grass(Pft *pft,              /**< pointer to grass PFT data */
-                           Real fpc_total,        /**< total sum of FPC */
-                           Real UNUSED(fpc_type), /**< FPC of grass PFTs */
-                           int n_est              /**< number of established grass PFTs */
-                          ) /** \return establishment flux (gC/m2, gN/m2) */
+Real establishment_grass(Pft *pft,Real fpc_total,
+                         Real UNUSED(fpc_type),int n_est) 
 {
 
   Pftgrass *grass;
@@ -31,7 +28,7 @@ Stocks establishment_grass(Pft *pft,              /**< pointer to grass PFT data
    * PFT on modelled area basis (for trees, indiv/m2; for 
    * grasses, fraction of modelled area colonised)
    */
-  Stocks flux_est;
+  Real acflux_est;
   if(n_est>0)
   {
     grass=pft->data;
@@ -39,21 +36,15 @@ Stocks establishment_grass(Pft *pft,              /**< pointer to grass PFT data
     est_pft=(1.0-fpc_total)/(Real)n_est;
     /* Account for flux from atmosphere to grass regeneration */
 
-    flux_est.carbon=(grasspar->sapl.leaf+grasspar->sapl.root)*est_pft;
-    flux_est.nitrogen=flux_est.carbon*grasspar->nc_ratio.leaf;
+    acflux_est=phys_sum_grass(grasspar->sapl)*est_pft;
 
     /* Add regeneration biomass to overall biomass */
 
-    grass->ind.leaf.carbon+=grasspar->sapl.leaf*est_pft;
-    grass->ind.root.carbon+=grasspar->sapl.root*est_pft;
-    grass->ind.leaf.nitrogen+=grasspar->sapl.leaf*grasspar->nc_ratio.leaf*est_pft;
-    grass->ind.root.nitrogen+=grasspar->sapl.root*grasspar->nc_ratio.leaf*est_pft;
-    pft->nleaf=grass->ind.leaf.nitrogen;
+    grass->ind.leaf+=grasspar->sapl.leaf*est_pft;
+    grass->ind.root+=grasspar->sapl.root*est_pft;
   }
   else
-    flux_est.carbon=flux_est.nitrogen=0;
+    acflux_est=0;
   fpc_grass(pft);
-  pft->establish.carbon+=flux_est.carbon;
-  pft->establish.nitrogen+=flux_est.nitrogen;
-  return flux_est;
+  return acflux_est;
 } /* of 'establishment_grass' */

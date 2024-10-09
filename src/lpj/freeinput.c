@@ -16,18 +16,17 @@
 
 #include "lpj.h"
 
-void freeinput(Input input,          /**< Input struct */
-               const Config *config  /**< LPJmL configuration */
+void freeinput(Input input, /**< Input struct */
+               Bool isroot  /**< task is root task (TRUE/FALSE) */
               )
 {
-  freeclimate(input.climate,isroot(*config));
-  freeextflow(input.extflow);
-  freewateruse(input.wateruse,isroot(*config));
-#ifdef IMAGE
-  freewateruse(input.wateruse_wd,isroot(*config));
-#endif
-  freelanduse(input.landuse,config);
-  freepopdens(input.popdens,isroot(*config));
-  freehumanignition(input.human_ignition,isroot(*config));
-  freelandcover(input.landcover,isroot(*config));
+  freeclimate(input.climate,isroot);
+  if(input.wateruse!=NULL)
+    freewateruse(input.wateruse,isroot);
+  if(input.landuse!=NULL)
+    freelanduse(input.landuse,isroot);
+  if(input.popdens!=NULL)
+    freepopdens(input.popdens,isroot);
+  if(input.landcover!=NULL)
+    freelandcover(input.landcover,isroot);
 } /* of 'freeinput' */

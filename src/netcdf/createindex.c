@@ -17,8 +17,7 @@
 Coord_array *createindex(const Coord *grid, /**< coordinate array of LPJ grid */
                          int ngrid,         /**< size of coordinate array */
                          Coord resolution,  /**< lon, lat resolution (deg) */
-                         Bool global,       /**< use global grid */
-                         Bool revlat        /**< reverse latitudes */
+                         Bool global        /**< use global grid */
                         )                   /** \return pointer to lat, lon, index  arrays or NULL */
 {
   Coord_array *array;
@@ -59,25 +58,14 @@ Coord_array *createindex(const Coord *grid, /**< coordinate array of LPJ grid */
   }
   array->nlon=(int)((lon_max-array->lon_min)/resolution.lon+0.5)+1;
   array->nlat=(int)((lat_max-array->lat_min)/resolution.lat+0.5)+1;
-  if(revlat)
-    for(cell=0;cell<ngrid;cell++)
-    {
-     array->index[cell]=(int)((grid[cell].lon-array->lon_min)/resolution.lon+0.5)+
-                        (int)((lat_max-grid[cell].lat)/resolution.lat+0.5)*array->nlon;
+  for(cell=0;cell<ngrid;cell++)
+  {
+   array->index[cell]=(int)((grid[cell].lon-array->lon_min)/resolution.lon+0.5)+
+                      (int)((grid[cell].lat-array->lat_min)/resolution.lat+0.5)*array->nlon;
 #ifdef SAFE
-     if(array->index[cell]<0 || array->index[cell]>=array->nlon*array->nlat)
-       fprintf(stderr,"Invalid index %d.\n",array->index[cell]);
+   if(array->index[cell]<0 || array->index[cell]>=array->nlon*array->nlat)
+     fprintf(stderr,"Invalid index %d.\n",array->index[cell]);
 #endif
-    }
-  else
-    for(cell=0;cell<ngrid;cell++)
-    {
-     array->index[cell]=(int)((grid[cell].lon-array->lon_min)/resolution.lon+0.5)+
-                        (int)((grid[cell].lat-array->lat_min)/resolution.lat+0.5)*array->nlon;
-#ifdef SAFE
-     if(array->index[cell]<0 || array->index[cell]>=array->nlon*array->nlat)
-       fprintf(stderr,"Invalid index %d.\n",array->index[cell]);
-#endif
-    }
+  }
   return array;
 } /* of 'createindex' */

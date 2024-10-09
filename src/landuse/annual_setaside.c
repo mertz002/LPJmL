@@ -22,6 +22,7 @@
 Bool annual_setaside(Stand *stand,         /**< Pointer to stand */
                      int npft,             /**< number of natural PFTs */
                      int UNUSED(ncft),     /**< number of crop PFTs */
+                     Real UNUSED(popdens), /**< population density (capita/km2) */
                      int year,             /**< simulation year */
                      Bool isdaily,         /**< daily temperature data? */
                      Bool intercrop,       /**< enable intercropping (TRUE/FALSE) */
@@ -35,11 +36,11 @@ Bool annual_setaside(Stand *stand,         /**< Pointer to stand */
 #ifndef DAILY_ESTABLISHMENT
   Real fpc_total;
   Bool *present;
-  Stocks flux_estab,stocks;
+  Real acflux_estab;
   int n_est=0;
   present=newvec(Bool,npft);
   check(present);
-  flux_estab.carbon=flux_estab.nitrogen=0;
+  acflux_estab=0;
   for(p=0;p<npft;p++)
     present[p]=FALSE;
 #endif
@@ -51,16 +52,16 @@ Bool annual_setaside(Stand *stand,         /**< Pointer to stand */
 #ifdef DEBUG2
     printf("PFT:%s fpc=%g\n",pft->par->name,pft->fpc);
     printf("PFT:%s bm_inc=%g vegc=%g soil=%g\n",pft->par->name,
-           pft->bm_inc.carbon,vegc_sum(pft),soilcarbon(&stand->soil));
+           pft->bm_inc,vegc_sum(pft),soilcarbon(&stand->soil));
 #endif
 
 #ifndef DAILY_ESTABLISHMENT
     present[pft->par->id]=TRUE;
 #endif
-    if(annual_grass(stand,pft,&fpc_inc,isdaily,config))
+    if(annual_grass(stand,pft,&fpc_inc,isdaily))
     {
       /* PFT killed, delete from list of established PFTs */
-      litter_update_grass(&stand->soil.litter,pft,pft->nind,config);
+      litter_update_grass(&stand->soil.litter,pft,pft->nind);
       delpft(&stand->pftlist,p);
       p--; /* adjust loop variable */ 
     }
@@ -84,25 +85,17 @@ Bool annual_setaside(Stand *stand,         /**< Pointer to stand */
          && establish(stand->cell->gdd[p],config->pftpar+p,&stand->cell->climbuf))
       {
         if(!present[p])
-         addpft(stand,config->pftpar+p,year,0,config);
+         addpft(stand,config->pftpar+p,year,0);
         n_est++;
       }
     }
     fpc_total=fpc_sum(fpc_type,config->ntypes,&stand->pftlist);
     foreachpft(pft,p,&stand->pftlist)
-      if(establish(stand->cell->gdd[pft->par->id],pft->par,&stand->cell->climbuf))
-      {
-        stocks=establishment_grass(pft,fpc_total,fpc_type[pft->par->type],n_est);
-        flux_estab.carbon+=stocks.carbon;
-        flux_estab.nitrogen+=stocks.nitrogen;
-      }
+     if(establish(stand->cell->gdd[pft->par->id],pft->par,&stand->cell->climbuf))
+      acflux_estab+=establishment_grass(pft,fpc_total,fpc_type[pft->par->type],n_est);
 
-    getoutput(&stand->cell->output,FLUX_ESTABC,config)+=flux_estab.carbon*stand->frac;
-    getoutput(&stand->cell->output,FLUX_ESTABN,config)+=flux_estab.nitrogen*stand->frac;
-    getoutput(&stand->cell->output,FLUX_ESTABN_MG,config)+=flux_estab.nitrogen*stand->frac;
-    stand->cell->balance.flux_estab.carbon+=flux_estab.carbon*stand->frac;
-    stand->cell->balance.flux_estab.nitrogen+=flux_estab.nitrogen*stand->frac;
-    stand->cell->output.dcflux-=flux_estab.carbon*stand->frac;
+    stand->cell->output.flux_estab+=acflux_estab*stand->frac;
+    stand->cell->output.dcflux-=acflux_estab*stand->frac;
   }
 #endif
 

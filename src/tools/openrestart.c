@@ -26,7 +26,7 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
   FILE *file;
   Header header;
   Restartheader restartheader;
-  int offset,version,i;
+  int offset,version;
   long long offsetl;
   char *type;
   /* Open file */
@@ -40,7 +40,7 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
   /* Read restart header */
   version=READ_VERSION;
   type=(config->ischeckpoint) ? "checkpoint" : "restart";
-  if(freadheader(file,&header,swap,RESTART_HEADER,&version,isroot(*config)))
+  if(freadheader(file,&header,swap,RESTART_HEADER,&version))
   {
     if(isroot(*config))
       fprintf(stderr,"ERROR154: Invalid header in %s file '%s'.\n",type,filename);
@@ -50,8 +50,8 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
   if(version!=RESTART_VERSION)
   {
     if(isroot(*config))
-      fprintf(stderr,"ERROR154: Invalid version %d in %s file '%s', must be %d.\n",
-              version,type,filename,RESTART_VERSION);
+      fprintf(stderr,"ERROR154: Invalid version %d in %s file '%s'.\n",
+              version,type,filename);
     fclose(file);
     return NULL;
   }
@@ -78,38 +78,24 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
     fclose(file);
     return NULL;
   }
-  if(restartheader.landuse)
+  if(restartheader.landuse && (config->withlanduse==NO_LANDUSE))
   {
-    if(config->withlanduse==NO_LANDUSE)
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR180: Land-use setting false is different from true in %s file '%s'.\n",type,filename);
-      fclose(file);
-      return NULL;
-    }
-    if(restartheader.separate_harvests!=config->separate_harvests)
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR180: Double harvest setting %s is different from %s in %s file '%s'.\n",
-                bool2str(config->separate_harvests),bool2str(restartheader.separate_harvests),type,filename);
-      fclose(file);
-      return NULL;
-    }
+    if(isroot(*config))
+      fprintf(stderr,"ERROR180: Land-use setting is different in %s file '%s'.\n",type,filename);
+    fclose(file);
+    return NULL;
   }
   config->landuse_restart=restartheader.landuse;
   if(restartheader.river_routing!=config->river_routing)
   {
     if(isroot(*config))
-      fprintf(stderr,"ERROR181: River-routing setting %s is different from %s in %s file '%s'.\n",
-              bool2str(config->river_routing),bool2str(restartheader.river_routing),type,filename);
+      fprintf(stderr,"ERROR181: River-routing setting is different in %s file '%s'.\n",type,filename);
     fclose(file);
     return NULL;
   }
   config->sdate_option_restart=restartheader.sdate_option;
-  config->crop_option_restart=restartheader.crop_option;
-  if(isroot(*config) && restartheader.sdate_option==NO_FIXED_SDATE && config->sdate_option>NO_FIXED_SDATE && config->firstyear-config->nspinup>config->sdate_fixyear)
-    fprintf(stderr,"ERROR245: Sowing dates are missing in restart file, sowing date fixed at year %d, but simulation starts at %d.\n",
-            config->sdate_fixyear,config->firstyear-config->nspinup);
+  if(isroot(*config) && restartheader.sdate_option==NO_FIXED_SDATE && config->sdate_option>NO_FIXED_SDATE)
+    fputs("WARNING024: Sowing dates are missing in restart file.\n",stderr);
   if((sizeof(Real)==sizeof(float)  && header.datatype!=LPJ_FLOAT) ||
      (sizeof(Real)==sizeof(double) && header.datatype!=LPJ_DOUBLE))
   {
@@ -121,15 +107,11 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
   if(header.nbands!=ntotpft)
   {
     if(isroot(*config))
-
       fprintf(stderr,
-              "ERROR183: Number of PFTs=%d does not match %d present in %s file '%s'.\n",
-              ntotpft,header.nbands,type,filename);
+              "ERROR183: Number of PFTs=%d does not match %d in %s file.\n",header.nbands,ntotpft,type);
     fclose(file);
     return NULL;
   }
-  for(i=0;i<NSEED;i++)
-    config->seed[i]=restartheader.seed[i];
   if(config->ischeckpoint)
   {
     config->checkpointyear=header.firstyear;
@@ -137,8 +119,7 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
        || config->checkpointyear>config->lastyear)
     {
       if(isroot(*config))
-        fprintf(stderr,"ERROR233: Year %d in checkpoint file '%s' outside simulation years.\n",
-                config->checkpointyear,filename);
+        fprintf(stderr,"ERROR233: Year %d in checkpoint file '%s' outside simulation years.\n",config->checkpointyear,filename);
       fclose(file);
       return NULL;
     }
@@ -146,48 +127,27 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
   else if(config->nspinup==0 && header.firstyear!=config->firstyear-1 &&
      isroot(*config))
     fprintf(stderr,
-            "WARNING005: Year of restart file=%d not equal start year=%d-1.\n",
+            "WARNING005: Year of restartfile=%d not equal start year=%d-1.\n",
             header.firstyear,config->firstyear);
 
-  if(config->firstgrid<header.firstcell)
-  {
-    if(isroot(*config))
-      fprintf(stderr,"ERROR155: First grid cell %d not in %s file '%s', starts at cell %d.\n",
-              config->startgrid,type,filename,header.firstcell);
-    fclose(file);
-    return NULL;
-  }
-  if(config->firstgrid>header.firstcell+header.ncell-1)
-  {
-    if(isroot(*config))
-      fprintf(stderr,"ERROR155: First grid cell %d not in %s file '%s', starts at cell %d.\n",
-              config->startgrid,type,filename,header.firstcell);
-    fclose(file);
-    return NULL;
-  }
-  if(config->nall>header.ncell)
-  {
-    if(isroot(*config))
-      fprintf(stderr,"ERROR155: %s file '%s' is too short, has only %d cells, %d needed.\n",
-              type,filename,header.ncell,config->nall);
-    fclose(file);
-    return NULL;
-  }
-  if(config->firstgrid+config->nall>header.firstcell+header.ncell)
-  {
-    if(isroot(*config))
-      fprintf(stderr,"ERROR155: %s file '%s' has cells in [%d,%d], must be [%d,%d].\n",
-              type,filename,header.firstcell,header.firstcell+header.ncell-1,
-              config->firstgrid,config->firstgrid+config->nall-1);
-    fclose(file);
-    return NULL;
-  }
   offset=config->startgrid-header.firstcell;
-  if(fseek(file,offset*sizeof(long long),SEEK_CUR))
+  if(offset<0)
   {
-    fprintf(stderr,"ERROR156: Cannot seek to index %d in %s file '%s'.\n",offset,type,filename);
-    fclose(file);
-    return NULL;
+    fprintf(stderr,
+            "WARNING006: First grid cell not in %s file, set to %d.\n",
+            type,header.firstcell);
+    config->startgrid=header.firstcell;
+    offset=0;
+  }
+  if(offset>0)
+  {
+    if(offset>=header.ncell)
+    {
+      fprintf(stderr,"ERROR155: First grid cell not in %s file '%s'.\n",type,filename);
+      fclose(file);
+      return NULL;
+    }
+    fseek(file,offset*sizeof(long long),SEEK_CUR);
   }
   /* read index from file */
   freadlong1(&offsetl,*swap,file);
@@ -198,5 +158,13 @@ FILE *openrestart(const char *filename, /**< filename of restart file */
     fclose(file);
     return NULL;
   }
+  if(header.ncell<config->ngridcell)
+  {
+    fprintf(stderr,
+            "WARNING007: %s file too short, grid truncated to %d.\n",
+            type,header.ncell);
+    config->ngridcell=header.ncell;
+  }
+
   return file;
 } /* of 'openrestart' */

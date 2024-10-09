@@ -16,12 +16,11 @@
 
 #include "lpj.h"
 
-Stocks noestablishment(Pft * UNUSED(pft),
+Real noestablishment(Pft * UNUSED(pft),
                      Real UNUSED(fpc_total),
                      Real UNUSED(fpc_tree),
                      int UNUSED(n_est)
                     )
 {
-  Stocks stock={0,0};
-  return stock;
+  return 0;
 } /* of 'noestablishment' */

@@ -1,9 +1,9 @@
-.TH txt2grid 1  "USER COMMANDS"
+.TH txt2grid 1  "January 29, 2016" "version 1.0.002" "USER COMMANDS"
 .SH NAME
 txt2grid \- convert text files to clm grid data files for LPJ
 .SH SYNOPSIS
 .B txt2grid
-[\-h] [\-v] [\-latlon] [\-map refgridfile] [-fmt s] [-skip n] [-cellsize size] [-cellsize_lon size] [-cellsize_lat size] [-float]
+[\-h] [-fmt s] [-skip n] [-cellsize size] [-float]
 .I txtfile gridfile
 .SH DESCRIPTION
 Program converts text files into LPJ grid data files
@@ -16,17 +16,8 @@ Id,Lon,Lat,X_CRU,Y_CRU
 .ni
 .SH OPTIONS
 .TP
-\-h,\--help
+\-h
 display a short help text
-.TP
-\-v,\--verbose
-verbose output
-.TP
-\-latlon
-read first latitude then longitude value from text file
-.TP
-\-map refgridfile
-map cell coordinate to nearest cell in refgridfile
 .TP
 \-fmt s
 input format string for the scanf function in 
@@ -37,16 +28,10 @@ input format string for the scanf function in
 skip first n lines in text file, default is one
 .TP
 \-cellsize size
-set latitudinal and longitudinal cell size, default is 0.5
-.TP
-\-cellsize_lon size
-set longitudinal cell size, default is 0.5
-.TP
-\-cellsize_lat size
-set latitudinal cell size, default is 0.5
+set cell size, default is 0.5
 .TP
 \-float
-longitude/latitude values written in float format to clm file, default is short
+float lon, lat values written to clm file, default is short
 .TP
 .I textfile    
 filename of text file to convert
@@ -55,13 +40,13 @@ filename of text file to convert
 filename of clm grid data file written
 .SH EXAMPLES
 .TP
-Create clm grid data file from text file containing longitude/latitude values in each line:
+Create clm grid data file:
 .B txt2grid
--skip 0 -fmt "%f %f" grid.txt grid.clm
+grid.txt grid.clm
 .PP
 .SH EXIT STATUS
 .B txt2grid
-returns a zero exit status if the clm file is created.
+returns a zero exist status if the clm file is created.
 Non zero is returned in case of failure.
 
 .SH AUTHORS

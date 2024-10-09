@@ -22,24 +22,25 @@ void copyright(const char *progname /**< program name */
   String os,title;
   const char *t[17];
   /* large letters created by figlet */
-  t[0]=" _     ____     _           _       ____         ___  ";
-  t[1]="| |   |  _ \\   | |_ __ ___ | |     | ___|       / _ \\";
-  t[2]="| |   | |_) |  | | '_ ` _ \\| |     |___ \\      | (_) |";
-  t[3]="| |___|  __/ |_| | | | | | | |___   ___) |  _   \\__, |";
-  t[4]="|_____|_|   \\___/|_| |_| |_|_____| |____/  (_)    /_/";
+
+  t[0]=" _     ____     _           _       _  _          ___  ";
+  t[1]="| |   |  _ \\   | |_ __ ___ | |     | || |        / _ \\ ";
+  t[2]="| |   | |_) |  | | '_ ` _ \\| |     | || |_      | | | |";
+  t[3]="| |___|  __/ |_| | | | | | | |___  |__   _|  _  | |_| |";
+  t[4]="|_____|_|   \\___/|_| |_| |_|_____|    |_|   (_)  \\___/ ";
   t[5]="";
   snprintf(title,78-10,"%s C Version " LPJ_VERSION " (%s)",progname,
            getbuilddate());
   t[6]=title;
 #ifdef USE_MPI
   snprintf(os,78-10,"Compiled for %s with MPI"
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
            " and IMAGE coupler"
 #endif
            ,sysname());
 #else
   snprintf(os,78-10,"Compiled for %s"
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
            " with IMAGE coupler"
 #endif
            ,sysname());
@@ -52,7 +53,7 @@ void copyright(const char *progname /**< program name */
   t[12]="This version of LPJmL is licensed under GNU AGPL Version 3 or later";
   t[13]="See LICENSE file or go to http://www.gnu.org/licenses/";
   t[14]="or invoke lpjml -l to print license";
-  t[15]="Contact: https://github.com/PIK-LPJmL/LPJmL";
+  t[15]="Contact: https://github.com/PIK-LPJmL/LPJmL /lpjml";
   t[16]="";
   banner(t,17,78);
 } /* of 'copyright' */

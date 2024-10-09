@@ -31,12 +31,12 @@ int main(int argc,char **argv)
   FILE **ifp;
   void *data;
   int i,j,k,p,*n,runs,bands,sum;
-  char *outfile,*endptr;
+  char *outfile;
   struct stat filestat;
   k=LPJ_FLOAT;
   bands=103;
   outfile=NULL;
-  for(i=1;i<argc;i++)
+  for(i=0;i<argc;i++)
     if(argv[i][0]=='-')
     {
       if(!strcmp(argv[i],"-type"))
@@ -67,7 +67,7 @@ int main(int argc,char **argv)
           return EXIT_FAILURE;
         }
         else
-          outfile=argv[++i];
+         outfile=argv[++i];
       }
       else if(!strcmp(argv[i],"-bands"))
       {
@@ -78,19 +78,7 @@ int main(int argc,char **argv)
           return EXIT_FAILURE;
         }
         else
-        {
-          bands=strtol(argv[++i],&endptr,10);
-          if(*endptr!='\0')
-          {
-            fprintf(stderr,"Invalid number '%s' for option '-bands'.\n",argv[i]);
-            return EXIT_FAILURE;
-          }
-        }
-        if(bands<1)
-        {
-          fprintf(stderr,"Number of bands=%d must be greater than zero.\n",bands);
-          return EXIT_FAILURE;
-        }
+         bands=atoi(argv[++i]);
       }
       else
       {
@@ -104,7 +92,7 @@ int main(int argc,char **argv)
   runs=argc-i;
   if(runs==0)
   {
-    fprintf(stderr,"Filename is missing.\n" USAGE);
+    fprintf(stderr,"Argument is missing\n" USAGE);
     return EXIT_FAILURE;
   }
   if(outfile==NULL)
@@ -120,7 +108,6 @@ int main(int argc,char **argv)
   }
   ifp=newvec(FILE *,runs);
   n=(int *)malloc(runs*sizeof(int));
-  check(n);
   for(j=0;j<runs;j++)
   {
 

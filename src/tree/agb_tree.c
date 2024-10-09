@@ -22,5 +22,5 @@ Real agb_tree(const Pft *pft /**< pointer to tree PFT */
 {
   const Pfttree *tree;
   tree=pft->data;
-  return (agb_tree_sum(tree->ind)-tree->ind.debt.carbon+tree->excess_carbon)*pft->nind-tree->turn_litt.leaf.carbon;
+  return (agb_tree_sum(tree->ind)-tree->ind.debt)*pft->nind-tree->turn_litt.leaf;
 } /* of 'agb_tree' */

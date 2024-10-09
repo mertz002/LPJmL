@@ -17,11 +17,8 @@
 
 #define c_albAntarctica  0.7
 #define c_roughness      0.06 /* Roughness height of vegetation below the canopy. Source: FOAM/LPJ */
-#define c_albedo_bare_soil  0.31 /* albedo of the bare soil as used by Gascoin et al 2009 */
-#define c_albedo_wet_soil  0.15  /* see above */
-#define decay_alb_moist  12.7    /* Describes how fast the moisture dependence is */
 
-Real albedo_stand(const Stand *stand /**< pointer to stand */
+Real albedo_stand(Stand *stand /**< pointer to stand */
                  )             /** \return albedo (0..1) */
 {
   int p;
@@ -30,21 +27,11 @@ Real albedo_stand(const Stand *stand /**< pointer to stand */
   Real albedo; /* albedo of the stand */
   Real sfr;
   Pft *pft;
-  const Soil *soil;
-  Real soil_albedo;
-#ifdef COUPLING_WITH_FMS
-  Real VolWatercontent;
-#endif
+  Soil *soil;
 
   soil = &stand->soil;
   sfr = soil->snowfraction; /* snow fraction in the stand */
   albstot=fbare=albedo=0;
-#ifdef COUPLING_WITH_FMS
-  VolWatercontent = max(0,soil->w[0]*soil->whc[0]);
-  soil_albedo = c_albedo_wet_soil + c_albedo_bare_soil*exp(-decay_alb_moist*VolWatercontent);/*gives the moisture dependence of the bare soil*/
-#else
-  soil_albedo=c_albsoil;
-#endif
   
   if (stand->soil.par->type == ICE /* ICE */)
   {
@@ -61,6 +48,6 @@ Real albedo_stand(const Stand *stand /**< pointer to stand */
   } 
   fbare = max((1-fbare),0.0);
 
-  albedo = albstot + fbare * (sfr * c_albsnow + (1 - sfr) * soil_albedo);
+  albedo = albstot + fbare * (sfr * c_albsnow + (1 - sfr) * c_albsoil);
   return albedo;
 } /* end of albedo_stand() */

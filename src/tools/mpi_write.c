@@ -29,10 +29,9 @@ int mpi_write(FILE *file,        /**< File pointer to binary file */
              )                   /** \return number of items written to disk */
 {
   int rc=0;
-  MPI_Aint lb;
   MPI_Aint extent;
-  MPI_Type_get_extent(type,&lb,&extent);
-  void *vec=NULL;
+  MPI_Type_extent(type,&extent);
+  void *vec;
   if(rank==0)
   {
     vec=malloc(size*extent); /* allocate receive buffer */
@@ -43,7 +42,7 @@ int mpi_write(FILE *file,        /**< File pointer to binary file */
   {
     rc=fwrite(vec,extent,size,file); /* write data to file */
     if(rc!=size)
-      fprintf(stderr,"ERROR204: Cannot write output: %s.\n",strerror(errno));
+      fprintf(stderr,"ERROR204: Error writing output: %s.\n",strerror(errno));
     free(vec);
   }
   MPI_Barrier(comm);

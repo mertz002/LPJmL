@@ -23,7 +23,11 @@ void new_agriculture(Stand *stand)
   irrigation=new(Irrigation);
   check(irrigation);
   stand->fire_sum=0.0;
-  stand->growing_days=0;
+  stand->growing_time=stand->growing_days=stand->age=0;
   stand->data=irrigation;
-  init_irrigation(irrigation);
+  irrigation->irrigation=FALSE;
+  irrigation->irrig_event=0;
+  irrigation->irrig_system=NOIRRIG;
+  irrigation->ec=1;
+  irrigation->conv_evap=irrigation->net_irrig_amount=irrigation->dist_irrig_amount=irrigation->irrig_amount=irrigation->irrig_stor=0.0;
 } /* of 'new_agriculture' */

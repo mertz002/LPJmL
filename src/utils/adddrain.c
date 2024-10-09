@@ -111,35 +111,9 @@ int main(int argc,char **argv)
     return EXIT_FAILURE;
   }
   data_version=READ_VERSION;
-  if(freadanyheader(file,&header,&swap,id,&data_version,TRUE))
+  if(freadanyheader(file,&header,&swap,id,&data_version))
   {
     fprintf(stderr,"Error reading header in '%s'.\n",argv[3]);
-    return EXIT_FAILURE;
-  }
-  if(data_version>CLM_MAX_VERSION)
-  {
-    fprintf(stderr,"Error: Unsupported version %d in '%s', must be less than %d.\n",
-            data_version,argv[3],CLM_MAX_VERSION+1);
-    return EXIT_FAILURE;
-  }
-  if(header.nbands!=2)
-  {
-    fprintf(stderr,"Invalid number of bands=%d in '%s', must be 2.\n",header.nbands,argv[3]);
-    return EXIT_FAILURE;
-  }
-  if(header.nstep!=1)
-  {
-    fprintf(stderr,"Invalid number of steps=%d in '%s', must be 1.\n",header.nstep,argv[3]);
-    return EXIT_FAILURE;
-  }
-  if(header.timestep!=1)
-  {
-    fprintf(stderr,"Invalid time step=%d in '%s', must be 1.\n",header.timestep,argv[3]);
-    return EXIT_FAILURE;
-  }
-  if(data_version>2 && header.datatype!=LPJ_INT)
-  {
-    fprintf(stderr,"Invalid datatype %s in '%s', muste bei int.\n",typenames[header.datatype],argv[3]);
     return EXIT_FAILURE;
   }
   if(header.ncell!=n1)
@@ -187,14 +161,12 @@ int main(int argc,char **argv)
   header.firstyear=0;
   header.order=0;
   header.nyear=1;
-  header.nstep=1;
-  header.timestep=1;
   header.nbands=2;
   header.scalar=(isshort) ? 0.01 : 1;
   for(i=0;i<header.ncell;i++)
   {
     //printf("find %g %g\n",cnew[i].lon,cnew[i].lat);
-    index=findcoord(cnew+i,c,&res,n1);
+    index=findcoord(cnew+i,c,n1);
     if(index==NOT_FOUND)
     {
       fprintf(stderr,"Coordinate %s not found.\n",sprintcoord(s,cnew+i));
@@ -206,7 +178,7 @@ int main(int argc,char **argv)
       if(from==NOT_FOUND)
         break;
       from+=j;
-      to=findcoord(c+from,cnew,&res,header.ncell);
+      to=findcoord(c+from,cnew,header.ncell);
       if(to==NOT_FOUND) 
       {
         /* add cell from upstream */
@@ -220,7 +192,7 @@ int main(int argc,char **argv)
       to=r[index].index;
       if(to>=0)
       {
-         index=findcoord(c+to,cnew,&res,header.ncell);
+         index=findcoord(c+to,cnew,header.ncell);
          if(index==NOT_FOUND)
          {
            cnew[header.ncell]=c[to];

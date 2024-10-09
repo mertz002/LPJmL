@@ -1,16 +1,19 @@
-.TH initlanduse 3  "LPJmL programmers manual"
+.TH initlanduse 3  "January 9, 2013" "version 4.0.002" "LPJmL programmers manual"
 .SH NAME
 initlanduse \- initialize land use data
 .SH SYNOPSIS
 .nf
 \fB#include "lpj.h"
 
-Landuse initlanduse(const Config *\fIconfig\fB);\fP
+Landuse initlanduse(int \fIncft\fB,const Config *\fIconfig\fB);\fP
 
 .fi
 .SH DESCRIPTION
 Function initializes land use data and opens related files specified in the LPJmL configuration.
-The argument of \fBinitlanduse\fP is:
+The arguments of \fBinitlanduse\fP are:
+.TP
+.I ncft
+Number of crop plant functional types.
 .TP
 .I config
 Pointer to LPJmL configuration data. Must be read by \fBreadconfig()\fP.

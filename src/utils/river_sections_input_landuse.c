@@ -66,7 +66,7 @@ int main(int argc,char **argv)
   }
 
   landuse_version=setversion;
-  if(freadanyheader(landuse_file,&header,&swap,headername,&landuse_version,TRUE)){
+  if(freadanyheader(landuse_file,&header,&swap,headername,&landuse_version)){
     fclose(landuse_file);
     fail(3,FALSE,"Invalid header in landuse-infile.");
   }
@@ -82,7 +82,7 @@ int main(int argc,char **argv)
 
   /* reading original grid file */
   version=setversion;
-  if(freadheader(mfp,&header_grid,&swap_grid,LPJGRID_HEADER,&version,TRUE)){
+  if(freadheader(mfp,&header_grid,&swap_grid,LPJGRID_HEADER,&version)){
     fclose(mfp);
     fail(23,FALSE,"Invalid header in original grid file.");
   }  
@@ -103,7 +103,7 @@ int main(int argc,char **argv)
   }
   fclose(mfp);
   version=setversion;
-  if(freadheader(ifp,&header_grid,&swap_grid,LPJGRID_HEADER,&version,TRUE)){
+  if(freadheader(ifp,&header_grid,&swap_grid,LPJGRID_HEADER,&version)){
     fclose(ifp);
     fail(23,FALSE,"Invalid header in re-ordered grid file.");
   }
@@ -122,7 +122,7 @@ int main(int argc,char **argv)
     fread(&rbuf1,sizeof(short),1,ifp);
     if(swap_grid) rbuf1=swapshort(rbuf1);
     lat=rbuf1;
-    /* printf("%d %d %d\n",k,lon,lat); */
+	/* printf("%d %d %d\n",k,lon,lat); */
       }
       else{
     fprintf(stderr,"Error reading lpjgrid.\n");

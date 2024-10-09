@@ -14,9 +14,8 @@
 
 #include "lpj.h"
 
-Stocks nofire(Pft * UNUSED(pft),Real *fireprob)
+Real nofire(Pft * UNUSED(pft),Real *fireprob)
 {
-  Stocks stocks={0,0};
   *fireprob=0;
-  return stocks;
+  return 0;
 } /* of 'nofire' */

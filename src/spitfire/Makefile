@@ -19,10 +19,10 @@ OBJS    = area_burnt.$O firedangerindex.$O\
           popdens.$O humanignition.$O\
           fraction_of_consumption.$O fuel_consumption_1hr.$O\
           initfuel.$O deadfuel_consumption.$O\
-          ignition.$O update_nesterov.$O\
+          initignition.$O update_nesterov.$O\
           litter_update_fire.$O surface_fire_intensity.$O\
           wildfire_ignitions.$O fuelload.$O rateofspread.$O\
-          windspeed_fpc.$O update_fbd_tree.$O\
+          windspeed_fpc.$O update_fbd_tree.$O fuel_consum_total.$O\
           update_fbd_grass.$O dailyfire.$O fwriteignition.$O freadignition.$O\
           fprintignition.$O
          
@@ -38,7 +38,7 @@ HDRS    = $(INC)/buffer.h $(INC)/coord.h $(INC)/lpj.h $(INC)/pftlist.h\
           $(INC)/conf.h $(INC)/swap.h $(INC)/soilpar.h $(INC)/managepar.h\
           $(INC)/spitfire.h $(INC)/stand.h $(INC)/cdf.h $(INC)/discharge.h\
           $(INC)/list.h $(INC)/cell.h  $(INC)/units.h $(INC)/header.h\
-          $(INC)/config.h $(INC)/climbuf.h $(INC)/output.h $(INC)/coupler.h
+          $(INC)/config.h $(INC)/climbuf.h $(INC)/output.h
           
 $(LIBDIR)/$(LIB): $(OBJS)
 	$(AR) $(ARFLAGS)$(LIBDIR)/$(LIB) $(OBJS)

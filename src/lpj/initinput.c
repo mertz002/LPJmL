@@ -19,41 +19,26 @@
 Bool initinput(Input *input,        /**< Input data */
                const Cell grid[],   /**< LPJ grid */
                int npft,            /**< number of natural PFTs */
-               Config *config       /**< LPJ configuration */
+               int ncft,            /**< number of crop PFTs */
+               const Config *config /**< LPJ configuration */
               )                     /** \return TRUE on error */
 {
   if((input->climate=initclimate(grid,config))==NULL)
     return TRUE;
-  if(config->extflow)
-  {
-    if((input->extflow=initextflow(config))==NULL)
-      return TRUE;
-  }
-  else
-    input->extflow=NULL;
   if(config->withlanduse!=NO_LANDUSE)
   {
-    if((input->landuse=initlanduse(config))==NULL)
+    if((input->landuse=initlanduse(ncft,config))==NULL)
       return TRUE;
   }
   else
     input->landuse=NULL; /* no landuse */
   if(config->wateruse)
   {
-    if((input->wateruse=initwateruse(&config->wateruse_filename,config))==NULL)
+    if((input->wateruse=initwateruse(config))==NULL)
       return TRUE;
-#ifdef IMAGE
-    if((input->wateruse_wd=initwateruse(&config->wateruse_wd_filename,config))==NULL)
-      return TRUE;
-#endif
   }
   else
-  {
     input->wateruse=NULL;
-#ifdef IMAGE
-    input->wateruse_wd=NULL;
-#endif
-  }
   if(config->ispopulation)
   {
     if((input->popdens=initpopdens(config))==NULL)
@@ -61,19 +46,12 @@ Bool initinput(Input *input,        /**< Input data */
   }
   else
     input->popdens=NULL;
-  if(config->fire==SPITFIRE || config->fire==SPITFIRE_TMAX)
-  {
-    if((input->human_ignition=inithumanignition(config))==NULL)
-      return TRUE;
-  }
-  else
-    input->human_ignition=NULL;
   if(config->prescribe_landcover != NO_LANDCOVER)
   {
     if((input->landcover=initlandcover(npft,config))==NULL)
       return TRUE;
   }
   else
-    input->landcover=NULL;
+    input->landcover=NULL;    
   return FALSE;
 } /* of 'initinput' */

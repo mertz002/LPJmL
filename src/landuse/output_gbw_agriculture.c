@@ -27,12 +27,14 @@ void output_gbw_agriculture(Output *output,      /**< output data */
                             Real intercep_stand_blue, /**< stand interception from irrigation (mm) */
                             int npft,            /**< number of natural PFTs */
                             int ncft,            /**< number of CROPS */
-                            const Config *config /**< LPJmL configuration */
+                            Bool pft_output_scaled
                            )
 {
-  int l,p,index;
   Pft *pft;
+#ifdef DOUBLE_HARVEST
   Pftcrop *crop;
+#endif
+  int l,p;
   Real total_g,total_b;
   Irrigation *data;
   data=stand->data;
@@ -50,73 +52,67 @@ void output_gbw_agriculture(Output *output,      /**< output data */
   }
   foreachpft(pft,p,&stand->pftlist)
   {
+#ifdef DOUBLE_HARVEST
     crop=pft->data;
-    if(stand->type->landusetype==OTHERS)
-      index=data->irrigation*getnirrig(ncft,config)+rothers(ncft);
-    else
-      index=pft->par->id-npft+data->irrigation*getnirrig(ncft,config);
-    if(config->pft_output_scaled)
+#endif
+    if(pft_output_scaled)
     {
-      getoutputindex(output,CFT_CONSUMP_WATER_G,index,config)+=total_g*stand->frac;
-      getoutputindex(output,CFT_CONSUMP_WATER_B,index,config)+=total_b*stand->frac;
+      output->cft_consump_water_g[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=total_g*stand->frac;
+      output->cft_consump_water_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=total_b*stand->frac;
       forrootsoillayer(l)
       {
-        if(crop->sh!=NULL)
-          crop->sh->transpsum+=aet_stand[l]*stand->frac;
-        else
-          getoutputindex(output,CFT_TRANSP,index,config)+=aet_stand[l]*stand->frac;
-        getoutputindex(output,CFT_TRANSP_B,index,config)+=(aet_stand[l]-green_transp[l])*stand->frac;
+#ifdef DOUBLE_HARVEST
+        crop->transpsum+=aet_stand[l]*stand->frac;
+#else
+        output->cft_transp[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=aet_stand[l]*stand->frac;
+#endif
+        output->cft_transp_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=(aet_stand[l]-green_transp[l])*stand->frac;
       }
-      if(crop->sh!=NULL)
-      {
-        crop->sh->evapsum+=evap*stand->frac;
-        crop->sh->intercsum+=intercep_stand*stand->frac;
-      }
-      else
-      {
-        getoutputindex(output,CFT_EVAP,index,config)+=evap*stand->frac;
-        getoutputindex(output,CFT_INTERC,index,config)+=intercep_stand*stand->frac;
-      }
-      getoutputindex(output,CFT_EVAP_B,index,config)+=evap_blue*stand->frac;
-      getoutputindex(output,CFT_INTERC_B,index,config)+=intercep_stand_blue*stand->frac;
-      getoutputindex(output,CFT_RETURN_FLOW_B,index,config)+=return_flow_b*stand->frac;
+#ifdef DOUBLE_HARVEST
+      crop->evapsum+=evap*stand->frac;
+      crop->intercsum+=intercep_stand*stand->frac;
+#else
+      output->cft_evap[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=evap*stand->frac;
+      output->cft_interc[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=intercep_stand*stand->frac;
+#endif
+      output->cft_evap_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=evap_blue*stand->frac;
+      output->cft_interc_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=intercep_stand_blue*stand->frac;
+      output->cft_return_flow_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=return_flow_b*stand->frac;
     }
     else
     {
-      getoutputindex(output,CFT_CONSUMP_WATER_G,index,config)+=total_g;
-      getoutputindex(output,CFT_CONSUMP_WATER_B,index,config)+=total_b;
+      output->cft_consump_water_g[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=total_g;
+      output->cft_consump_water_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=total_b;
       forrootsoillayer(l)
       {
-        if(crop->sh!=NULL)
-          crop->sh->transpsum+=aet_stand[l];
-        else
-          getoutputindex(output,CFT_TRANSP,index,config)+=aet_stand[l];
-        getoutputindex(output,CFT_TRANSP_B,index,config)+=(aet_stand[l]-green_transp[l]);
+#ifdef DOUBLE_HARVEST
+        crop->transpsum+=aet_stand[l];
+#else
+        output->cft_transp[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=aet_stand[l];
+#endif
+        output->cft_transp_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=(aet_stand[l]-green_transp[l]);
       }
-      if(crop->sh!=NULL)
-      {
-        crop->sh->evapsum+=evap;
-        crop->sh->intercsum+=intercep_stand;
-      }
-      else
-      {
-        getoutputindex(output,CFT_EVAP,index,config)+=evap;
-        getoutputindex(output,CFT_INTERC,index,config)+=intercep_stand;
-      }
-      getoutputindex(output,CFT_EVAP_B,index,config)+=evap_blue;
-      getoutputindex(output,CFT_INTERC_B,index,config)+=intercep_stand_blue;
-      getoutputindex(output,CFT_RETURN_FLOW_B,index,config)+=return_flow_b;
+#ifdef DOUBLE_HARVEST
+      crop->evapsum+=evap;
+      crop->intercsum+=intercep_stand;
+#else
+      output->cft_evap[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=evap;
+      output->cft_interc[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=intercep_stand;
+#endif
+      output->cft_evap_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=evap_blue;
+      output->cft_interc_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=intercep_stand_blue;
+      output->cft_return_flow_b[pft->par->id-npft+data->irrigation*(ncft+NGRASS+NBIOMASSTYPE)]+=return_flow_b;
     }
 
     if(data->irrigation)
     {
-      getoutput(output,GCONS_IRR,config)+=total_g*stand->frac;
-      getoutput(output,BCONS_IRR,config)+=total_b*stand->frac;
+      output->mgcons_irr+=total_g*stand->frac;
+      output->mbcons_irr+=total_b*stand->frac;
     }
     else
     {
-      getoutput(output,GCONS_RF,config)+=total_g*stand->frac;
-      getoutput(output,GCONS_RF,config)+=total_b*stand->frac;
+      output->mgcons_rf+=total_g*stand->frac;
+      output->mgcons_rf+=total_b*stand->frac;
     }
 
   } /* of 'foreachpft' */

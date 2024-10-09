@@ -14,40 +14,23 @@
 
 #include "lpj.h"
 
-#define USAGE  "Usage: getcellindex [-search] gridfile [lat lon] ...\n"
+#define USAGE  "Usage: getcellindex gridfile [lat lon] ...\n"
 
 int main(int argc,char **argv)
-{
-  int iarg,i,n,index;
-  Bool issearch=FALSE;
+{ 
+  int i,n,index;
   char *endptr;
   Coordfile file;
   Coord *coords,res,pos;
   float lon,lat;
-  Real dist_min;
-  Filename name;
-  for(iarg=1;iarg<argc;iarg++)
-    if(argv[iarg][0]=='-')
-    {
-      if(!strcmp(argv[iarg],"-search"))
-        issearch=TRUE;
-      else
-      {
-        fprintf(stderr,"Error: invalid option '%s'.\n"
-                USAGE,argv[iarg]);
-        return EXIT_FAILURE;
-      }
-    }
-    else
-      break;
-
-  if(argc-iarg<1 || (argc-iarg-1) % 2)
+  Filename name; 
+  if(argc<2 || (argc-2) % 2)
   {
-    fputs("Error: Missing arguments.\n"
+    fputs("Missing arguments.\n"
           USAGE,stderr);
     return EXIT_FAILURE;
   }
-  name.name=argv[iarg];
+  name.name=argv[1];
   name.fmt=CLM;
   file=opencoord(&name,TRUE);
   if(file==NULL)
@@ -69,14 +52,14 @@ int main(int argc,char **argv)
       return EXIT_FAILURE;
     }
   closecoord(file);
-  if(argc==iarg+1)
+  if(argc==2)
   {
     puts("Lat     Lon");
     for(i=0;i<n;i++)
       printf("%10.8f %10.8f\n",coords[i].lat,coords[i].lon);
   }
   else
-    for(i=iarg+1;i<argc;i+=2)
+    for(i=2;i<argc;i+=2)
     {
       pos.lat=strtod(argv[i],&endptr);
       switch(*endptr)
@@ -86,7 +69,7 @@ int main(int argc,char **argv)
          case 'S':
            pos.lat= -pos.lat;
            break;
-         default:
+         default: 
            fprintf(stderr,"Invalid argument '%s' for latitude.\n",argv[i]);
            return EXIT_FAILURE;
       }
@@ -98,27 +81,14 @@ int main(int argc,char **argv)
          case 'W':
            pos.lon= -pos.lon;
            break;
-         default:
+         default: 
            fprintf(stderr,"Invalid argument '%s' for longitude.\n",argv[i+1]);
            return EXIT_FAILURE;
       }
-      index=findcoord(&pos,coords,&res,n);
+      index=findcoord(&pos,coords,n);
       if(index==NOT_FOUND)
-      {
-        if(issearch)
-        {
-          index=findnextcoord(&dist_min,&pos,coords,n);
-          printf("%d: Coordinate ",index);
-          printcoord(&pos);
-          fputs(" mapped to ",stdout);
-          printcoord(coords+index);
-          printf(", distance=%g\n",dist_min);
-
-        }
-        else
-          fprintf(stderr,"Coordinate not found for (%g, %g) in '%s'.\n",
-                  pos.lat,pos.lon,argv[1]);
-      }
+        fprintf(stderr,"Coordinate not found for (%g, %g) in '%s'.\n",
+                pos.lat,pos.lon,argv[1]);
       else
         printf("%d\n",index);
     }

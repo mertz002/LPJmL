@@ -15,7 +15,9 @@
 #undef USE_MPI /* no MPI */
 
 #include "lpj.h"
+#include <sys/stat.h>
 
+#define CRU2CLM_VERSION "1.0.003"
 #define NYEAR 103  /* default value for number of years */
 #define FIRSTYEAR 1901 /* default value for first year */
 #define FIRSTCELL 0
@@ -30,11 +32,11 @@ int main(int argc,char **argv)
 {
   FILE *file;
   Data *data;
-  char *endptr;
   Header header;
   long int k;
   int i,j,n;
   Bool swap;
+  struct stat filestat;
   header.nyear=NYEAR;
   header.firstyear=FIRSTYEAR;
   header.order=CELLYEAR;
@@ -50,10 +52,10 @@ int main(int argc,char **argv)
     {
       if(!strcmp(argv[i],"-h"))
       {
-        printf("cru2clm (" __DATE__ ") - convert cru data files to\n"
-               "       clm data files for LPJmL version " LPJ_VERSION "\n\n");
+        printf("cru2clm " CRU2CLM_VERSION " (" __DATE__ ") - convert cru data files to\n"
+               "       clm data files for lpj C version\n");
         printf(USAGE
-               "\nArguments:\n"
+               "Arguments:\n"
                "-h               print this help text\n" 
                "-firstyear first first year in cru file (default is %d)\n"
                "-lastyear last   last year in cru file\n"
@@ -65,8 +67,7 @@ int main(int argc,char **argv)
                "-swap            change byte order in cru file\n"
                "-yearcell        does not revert order in cru file\n"
                "crufile          filename of cru data file\n"
-               "clmfile          filename of clm data file\n\n"
-               "(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file\n",
+               "clmfile          filename of clm data file\n",
                FIRSTYEAR,NYEAR,FIRSTCELL,NCELL,NMONTH);
         return EXIT_SUCCESS;
       }
@@ -78,18 +79,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.nyear=strtol(argv[++i],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-nyear'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
-        if(header.nyear<1)
-        {
-          fprintf(stderr,"Number of years=%d must be greater than zero.\n",header.nyear);
-          return EXIT_FAILURE;
-        }
+        header.nyear=atoi(argv[++i]);
       }
       else if(!strcmp(argv[i],"-firstyear"))
       {
@@ -99,13 +89,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.firstyear=strtol(argv[++i],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-firstyear'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
+        header.firstyear=atoi(argv[++i]);
       }
       else if(!strcmp(argv[i],"-lastyear"))
       {
@@ -115,18 +99,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.nyear=strtol(argv[++i],&endptr,10)-header.firstyear+1;
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-lastyear'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
-        if(header.nyear<1)
-        {
-          fprintf(stderr,"Last year=%d less than first year=%d.\n",header.firstyear+header.nyear-1,header.firstyear);
-          return EXIT_FAILURE;
-        }
+        header.nyear=atoi(argv[++i])-header.firstyear+1;
       }
       else if(!strcmp(argv[i],"-scale"))
       {
@@ -136,18 +109,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.scalar=(float)strtod(argv[++i],&endptr);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-scale'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
-        if(header.scalar<=0)
-        {
-          fprintf(stderr,"Scalar=%g must be greater than zero.\n",header.scalar);
-          return EXIT_FAILURE;
-        }
+        header.scalar=(float)atof(argv[++i]);
       }
       else if(!strcmp(argv[i],"-firstcell"))
       {
@@ -157,18 +119,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.firstcell=strtol(argv[++i],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-firstcell'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
-        if(header.firstcell<1)
-        {
-          fprintf(stderr,"First cell=%d must be greater than zero.\n",header.firstcell);
-          return EXIT_FAILURE;
-        }
+        header.firstcell=atoi(argv[++i]);
       }
       else if(!strcmp(argv[i],"-ncell"))
       {
@@ -178,18 +129,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.ncell=strtol(argv[++i],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-ncell'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
-        if(header.ncell<1)
-        {
-          fprintf(stderr,"Number of cells=%d must be greater than zero.\n",header.ncell);
-          return EXIT_FAILURE;
-        }
+        header.ncell=atoi(argv[++i]);
       }
       else if(!strcmp(argv[i],"-nbands"))
       {
@@ -199,18 +139,7 @@ int main(int argc,char **argv)
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        header.nbands=strtol(argv[++i],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-nbands'.\n",
-                  argv[i]);
-          return EXIT_FAILURE;
-        }
-        if(header.nbands<1)
-        {
-          fprintf(stderr,"Number of bands=%d must be greater than zero.\n",header.nbands);
-          return EXIT_FAILURE;
-        }
+        header.nbands=atoi(argv[++i]);
       }
       else if(!strcmp(argv[i],"-swap"))
         swap=TRUE;
@@ -237,7 +166,8 @@ int main(int argc,char **argv)
     fprintf(stderr,"Error opening '%s': %s\n",argv[i],strerror(errno));
     return EXIT_FAILURE;
   }
-  n=getfilesizep(file)/header.nyear/sizeof(Data);
+  fstat(fileno(file),&filestat);
+  n=filestat.st_size/header.nyear/sizeof(Data);
   printf("Number of cells: %d\n",n);
   data=(Data *)malloc(n*sizeof(Data)*header.nyear);
   if(data==NULL)

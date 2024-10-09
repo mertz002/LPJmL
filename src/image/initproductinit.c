@@ -16,7 +16,7 @@
 
 #include "lpj.h"
 
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
 
 Productinit *initproductinit(const Config *config)
 {
@@ -40,7 +40,7 @@ Productinit *initproductinit(const Config *config)
   if((productinit->file=openinputfile(&header,&productinit->swap,
                                       &config->prodpool_init_filename,
                                       headername,
-                                      &version,&offset,TRUE,config))==NULL)
+                                      &version,&offset,config))==NULL)
   {
     free(productinit);
     return NULL;

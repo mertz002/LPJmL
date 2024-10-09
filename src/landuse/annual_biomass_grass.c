@@ -17,11 +17,13 @@
 
 #include "lpj.h"
 #include "grass.h"
+#include "agriculture.h"
 #include "biomass_grass.h"
 
 Bool annual_biomass_grass(Stand *stand,         /* Pointer to stand */
                           int npft,             /**< number of natural pfts */
-                          int ncft,             /**< number of crop PFTs */
+                          int UNUSED(ncft),     /**< number of crop PFTs */
+                          Real UNUSED(popdens), /**< population density (capita/km2) */
                           int year,             /**< simulation year (AD) */
                           Bool isdaily,         /**< daily temperature data? */
                           Bool UNUSED(intercrop), /**< enable intercropping (TRUE/FALSE) */
@@ -31,9 +33,8 @@ Bool annual_biomass_grass(Stand *stand,         /* Pointer to stand */
   int p;
   Bool *present;
   Pft *pft;
-  Real fpc_inc;
-  Stocks estab_store;
-  Stocks flux_estab,stocks;
+  Real fpc_inc,estab_store;
+  Real acflux_estab;
   int n_est=0;
   Real fpc_total,*fpc_type;
   Irrigation *irrigation;
@@ -44,7 +45,7 @@ Bool annual_biomass_grass(Stand *stand,         /* Pointer to stand */
   check(fpc_type);
   present=newvec(Bool,npft);
   check(present);
-  flux_estab.carbon=estab_store.carbon=flux_estab.nitrogen=estab_store.nitrogen=0;
+  acflux_estab=estab_store=0;
   for(p=0;p<npft;p++)
     present[p]=FALSE;
 
@@ -53,24 +54,21 @@ Bool annual_biomass_grass(Stand *stand,         /* Pointer to stand */
 #ifdef DEBUG2
     printf("PFT:%s fpc=%g\n",pft->par->name,pft->fpc);
     printf("PFT:%s bm_inc=%g vegc=%g soil=%g\n",pft->par->name,
-           pft->bm_inc.carbon,vegc_sum(pft),soilcarbon(&stand->soil));
+           pft->bm_inc,vegc_sum(pft),soilcarbon(&stand->soil));
 #endif
 
     present[pft->par->id]=TRUE;
     grasspar=pft->par->data;
-    if (stand->cell->balance.estab_storage_grass[irrigation->irrigation].carbon<grasspar->sapling_C*0.01)
+    if (stand->cell->balance.estab_storage_grass[irrigation->irrigation]<grasspar->sapling_C*0.01)
     {
-      estab_store.carbon=pft->bm_inc.carbon*0.001;
-      estab_store.nitrogen=pft->bm_inc.nitrogen*0.001;
-      pft->bm_inc.carbon-=estab_store.carbon;
-      pft->bm_inc.nitrogen-=estab_store.nitrogen;
-      stand->cell->balance.estab_storage_grass[irrigation->irrigation].carbon+=estab_store.carbon*stand->frac;
-      stand->cell->balance.estab_storage_grass[irrigation->irrigation].nitrogen+=estab_store.nitrogen*stand->frac;
+      estab_store=pft->bm_inc*0.001;
+      pft->bm_inc-=estab_store;
+      stand->cell->balance.estab_storage_grass[irrigation->irrigation]+=estab_store*stand->frac;
     }
-    if(annual_grass(stand,pft,&fpc_inc,isdaily,config))
+    if(annual_grass(stand,pft,&fpc_inc,isdaily))
     {
       /* PFT killed, delete from list of established PFTs */
-      litter_update_grass(&stand->soil.litter,pft,pft->nind,config);
+      litter_update_grass(&stand->soil.litter,pft,pft->nind);
       delpft(&stand->pftlist,p);
       p--; /* adjust loop variable */
     }
@@ -87,30 +85,23 @@ Bool annual_biomass_grass(Stand *stand,         /* Pointer to stand */
        && establish(stand->cell->gdd[p],config->pftpar+p,&stand->cell->climbuf))
     {
       if(!present[p])
-        addpft(stand,config->pftpar+p,year,0,config);
+       addpft(stand,config->pftpar+p,year,0);
       n_est++;
     }
   }
 
   fpc_total=fpc_sum(fpc_type,config->ntypes,&stand->pftlist);
   foreachpft(pft,p,&stand->pftlist)
-    if(establish(stand->cell->gdd[pft->par->id],pft->par,&stand->cell->climbuf))
-    {
-      stocks=establishment_grass(pft,fpc_total,fpc_type[pft->par->type],n_est);
-      flux_estab.carbon+=stocks.carbon;
-      flux_estab.nitrogen+=stocks.nitrogen;
-    }
+   if(establish(stand->cell->gdd[pft->par->id],pft->par,&stand->cell->climbuf))
+    acflux_estab+=establishment_grass(pft,fpc_total,fpc_type[pft->par->type],n_est);
 
-  stand->cell->balance.estab_storage_grass[irrigation->irrigation].carbon-=flux_estab.carbon*stand->frac;
-  stand->cell->balance.estab_storage_grass[irrigation->irrigation].nitrogen-=flux_estab.nitrogen*stand->frac;
+  stand->cell->balance.estab_storage_grass[irrigation->irrigation]-=acflux_estab*stand->frac;
+  acflux_estab=0;
 
-  stand->cell->balance.soil_storage+=(irrigation->irrig_stor+irrigation->irrig_amount)*stand->frac*stand->cell->coord.area;
-  foreachpft(pft,p,&stand->pftlist)
-  {
-    getoutputindex(&stand->cell->output,FPC_BFT,getpftpar(pft, id)-npft+config->nbiomass+config->nagtree+config->nwft+2*config->ngrass+irrigation->irrigation*(config->nbiomass+2*config->ngrass),config)=+pft->fpc;
-    getoutputindex(&stand->cell->output,PFT_VEGC,npft-config->nbiomass-config->nwft-config->nagtree+rbgrass(ncft)+irrigation->irrigation*getnirrig(ncft,config),config)+=vegc_sum(pft);
-    getoutputindex(&stand->cell->output,PFT_VEGN,npft-config->nbiomass-config->nwft-config->nagtree+rbgrass(ncft)+irrigation->irrigation*getnirrig(ncft,config),config)+=vegn_sum(pft)+pft->bm_inc.nitrogen;
-  }
+  stand->cell->output.flux_estab+=acflux_estab*stand->frac;
+  stand->cell->output.dcflux-=acflux_estab*stand->frac;
+
+  stand->cell->output.soil_storage+=(irrigation->irrig_stor+irrigation->irrig_amount)*stand->frac*stand->cell->coord.area;
 
   free(fpc_type);
   free(present);

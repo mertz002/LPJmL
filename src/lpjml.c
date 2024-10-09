@@ -81,11 +81,21 @@
 #include "biomass_tree.h"
 #include "biomass_grass.h"
 #include "agriculture.h"
-#include "agriculture_grass.h"
-#include "agriculture_tree.h"
 
 #define NTYPES 3 /* number of plant functional types: grass, tree, annual_crop */
-#define NSTANDTYPES 13 /* number of stand types / land use types as defined in landuse.h*/
+#define NSTANDTYPES 9 /* number of stand types / land use types as defined in landuse.h*/
+
+#ifdef USE_JSON
+#define dflt_conf_filename_ml "lpjml.js" /* Default LPJ configuration file
+                                            if called by lpjml */
+#define dflt_conf_filename "lpj.js" /* Default LPJ configuration file
+                                       if called by lpj */
+#else
+#define dflt_conf_filename_ml "lpjml.conf" /* Default LPJ configuration file
+                                              if called by lpjml */
+#define dflt_conf_filename "lpj.conf" /* Default LPJ configuration file
+                                         if called by lpj */
+#endif
 
 int main(int argc,char **argv)
 {
@@ -96,16 +106,22 @@ int main(int argc,char **argv)
   Input input;        /* input data */
   time_t tstart,tend,tbegin,tfinal;   /* variables for timing */
   Standtype standtype[NSTANDTYPES];
-  String s;
   Config config;         /* LPJ configuration */
 
-  /* Create array of functions, uses the typedef of Pfttype in config.h */
-  Pfttype scanfcn[NTYPES]=
-  {
-    {name_grass,fscanpft_grass},
-    {name_tree,fscanpft_tree},
-    {name_crop,fscanpft_crop}
-  };
+  /* Create array of functions, uses the typedef of (*Fscanpftparfcn) in pft.h */
+  Fscanpftparfcn scanfcn[NTYPES]={fscanpft_grass,fscanpft_tree,fscanpft_crop};
+
+  standtype[NATURAL]=natural_stand;
+  standtype[SETASIDE_RF]=setaside_rf_stand;
+  standtype[SETASIDE_IR]=setaside_ir_stand;
+  standtype[AGRICULTURE]=agriculture_stand;
+  standtype[MANAGEDFOREST]=managedforest_stand;
+  standtype[GRASSLAND]=grassland_stand;
+  standtype[BIOMASS_TREE]=biomass_tree_stand;
+  standtype[BIOMASS_GRASS]=biomass_grass_stand;
+  standtype[KILL]=kill_stand;
+
+
   time(&tbegin);         /* Start timing for total wall clock time */
 #ifdef USE_MPI
   MPI_Init(&argc,&argv); /* Initialize MPI */
@@ -121,18 +137,19 @@ int main(int argc,char **argv)
   progname=strippath(argv[0]); /* strip path from program name */
   if(argc>1)
   {
-    if(!strcmp(argv[1],"-h") || !strcmp(argv[1],"--help")) /* check for help option */
+    if(!strcmp(argv[1],"-h")) /* check for help option */
     {
       if(isroot(config))
       {
-        help(progname);
+        help(progname,
+             (strcmp(progname,"lpj")) ? dflt_conf_filename_ml : dflt_conf_filename);
       }
 #ifdef USE_MPI
       MPI_Finalize();
 #endif
       return EXIT_SUCCESS;
     }
-    if(!strcmp(argv[1],"-l") || !strcmp(argv[1],"--license")) /* check for license option */
+    if(!strcmp(argv[1],"-l")) /* check for license option */
     {
       if(isroot(config))
         printlicense();
@@ -141,7 +158,7 @@ int main(int argc,char **argv)
 #endif
       return EXIT_SUCCESS;
     }
-    else if(!strcmp(argv[1],"-v") || !strcmp(argv[1],"--version")) /* check for version option */
+    else if(!strcmp(argv[1],"-v")) /* check for version option */
     {
       if(isroot(config))
         printflags(progname);
@@ -163,61 +180,34 @@ int main(int argc,char **argv)
    * in light and establishment
    * crops must have last id-number */
   /* Read configuration file */
-  rc=readconfig(&config,scanfcn,NTYPES,NOUT,&argc,&argv,lpj_usage);
+  rc=readconfig(&config,
+                (strcmp(progname,"lpj")) ? dflt_conf_filename_ml :
+                                           dflt_conf_filename,
+                scanfcn,NTYPES,NOUT,&argc,&argv,lpj_usage);
   failonerror(&config,rc,READ_CONFIG_ERR,"Cannot read configuration");
   if(isroot(config) && argc)
     fputs("WARNING018: Arguments listed after configuration filename, will be ignored.\n",stderr);
-  if(config.ofiles)
-  {
-    if(isroot(config))
-      fprintoutputvar(stdout,config.outnames,NOUT,config.npft[GRASS]+config.npft[TREE],config.npft[CROP],&config);
-#ifdef USE_MPI
-    MPI_Finalize();
-#endif
-    return EXIT_SUCCESS;
-  }
   if(isroot(config))
-  {
-    createconfig(&config);
-    printconfig(config.npft[GRASS]+config.npft[TREE],
-                config.npft[CROP],&config);
-  }
+    printconfig(&config,config.npft[GRASS]+config.npft[TREE],
+                config.npft[CROP]);
   if(config.sim_id==LPJML_FMS)
   {
     if(isroot(config))
-      fputs("ERROR032: FMS coupler not supported in standalone version.\n",stderr);
+      fputs("ERROR032: FMS coupler not supported.\n",stderr);
     return NO_FMS_ERR;
   }
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
   if(config.sim_id==LPJML_IMAGE)
   {
     rc=open_image(&config);
     failonerror(&config,rc,OPEN_IMAGE_ERR,"Cannot open IMAGE coupler");
   }
 #endif
-  standtype[NATURAL]=natural_stand;
-  standtype[SETASIDE_RF]=setaside_rf_stand;
-  standtype[SETASIDE_IR]=setaside_ir_stand;
-  standtype[AGRICULTURE]=agriculture_stand;
-  standtype[MANAGEDFOREST]=managedforest_stand;
-  standtype[GRASSLAND]=grassland_stand;
-  standtype[OTHERS]=others_stand;
-  standtype[BIOMASS_TREE]=biomass_tree_stand;
-  standtype[BIOMASS_GRASS]=biomass_grass_stand;
-  standtype[AGRICULTURE_TREE]=agriculture_tree_stand;
-  standtype[AGRICULTURE_GRASS]=agriculture_grass_stand;
-  standtype[WOODPLANTATION]=woodplantation_stand;
-  standtype[KILL]=kill_stand;
   /* Allocation and initialization of grid */
   rc=((grid=newgrid(&config,standtype,NSTANDTYPES,config.npft[GRASS]+config.npft[TREE],config.npft[CROP]))==NULL);
   failonerror(&config,rc,INIT_GRID_ERR,"Initialization of LPJ grid failed");
-  if(iscoupled(config))
-  {
-    rc=open_coupler(&config);
-    snprintf(s,STRING_LEN,"Cannot couple to %s model",config.coupled_model);
-    failonerror(&config,rc,OPEN_COUPLER_ERR,s);
-  }
-  rc=initinput(&input,grid,config.npft[GRASS]+config.npft[TREE],&config);
+
+  rc=initinput(&input,grid,config.npft[GRASS]+config.npft[TREE],config.npft[CROP],&config);
   failonerror(&config,rc,INIT_INPUT_ERR,
               "Initialization of input data failed");
   if(config.check_climate)
@@ -227,26 +217,13 @@ int main(int argc,char **argv)
   }
   /* open output files */  
   output=fopenoutput(grid,NOUT,&config);
-  rc=(output==NULL);
-  failonerror(&config,rc,INIT_OUTPUT_ERR,
-              "Initialization of output data failed");
-  rc=initoutput(output,grid,config.npft[GRASS]+config.npft[TREE],config.npft[CROP],&config);
-  failonerror(&config,rc,INIT_OUTPUT_ERR,
-              "Initialization of output data failed");
-  if(iscoupled(config))
-  {
-    rc=check_coupler(&config);
-    snprintf(s,STRING_LEN,"Cannot initialize %s model",config.coupled_model);
-    failonerror(&config,rc,OPEN_COUPLER_ERR,s);
-  }
+
   if(isopen(output,GRID))
     writecoords(output,GRID,grid,&config);
-  if(isopen(output,TERR_AREA))
-    writearea(output,TERR_AREA,grid,&config);
-  if(isopen(output,LAKE_AREA))
-    writearea(output,LAKE_AREA,grid,&config);
   if(isopen(output,COUNTRY) && config.withlanduse)
     writecountrycode(output,COUNTRY,grid,&config);
+  if(isopen(output,REGION) && config.withlanduse)
+    writeregioncode(output,REGION,grid,&config);
   if(isroot(config))
     puts("Simulation begins...");
   time(&tstart); /* Start timing */
@@ -260,7 +237,7 @@ int main(int argc,char **argv)
   if(isroot(config))
     puts((year>config.lastyear) ? "Simulation ended." : "Simulation stopped.");
   /* free memory */
-  freeinput(input,&config);
+  freeinput(input,isroot(config));
   freegrid(grid,config.npft[GRASS]+config.npft[TREE],&config);
   if(isroot(config))
   {
@@ -268,20 +245,13 @@ int main(int argc,char **argv)
     printf(" terminated, %d grid cells processed.\n"
            "Wall clock time:\t%d sec, %.2g sec/cell/year.\n",
            config.total,(int)(tend-tstart),
-           (double)(tend-tstart)/config.total/max(year-config.firstyear+
-                                                   config.nspinup,1));
-#ifdef USE_TIMING
-    if(iscoupled(config))
-      printf("Time spent in communication to %s model: %.2g sec.\n",
-             config.coupled_model,timing);
-#endif
+           (double)(tend-tstart)/config.total/(year-config.firstyear+
+                                                   config.nspinup));
   }
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
   if(config.sim_id==LPJML_IMAGE)
     close_image(&config);
 #endif
-  if(iscoupled(config))
-    close_coupler(year<=config.lastyear,&config);
   freeconfig(&config);
 #ifdef USE_MPI
   /* Wait until all tasks have finished to measure total wall clock time */
@@ -293,7 +263,7 @@ int main(int argc,char **argv)
   if(isroot(config))
   {
     printf("Total wall clock time:\t%d sec (",(int)(tfinal-tbegin));
-    printtime((int)(tfinal-tbegin));
+    printtime(tfinal-tbegin);
     puts(").");
   }
   return EXIT_SUCCESS;

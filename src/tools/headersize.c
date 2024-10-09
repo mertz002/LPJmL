@@ -14,7 +14,7 @@
 
 #include "lpj.h"
 
-const size_t typesizes[]={1,sizeof(short),sizeof(int),sizeof(float),sizeof(double)};
+size_t typesizes[]={1,sizeof(short),sizeof(int),sizeof(float),sizeof(double)};
 char *typenames[]={"byte","short","int","float","double"};
 
 size_t headersize(const char *headername, /**< header string in CLM file */
@@ -23,15 +23,13 @@ size_t headersize(const char *headername, /**< header string in CLM file */
 {
   switch(version)
   {
-    case 0: case CLM_MAX_VERSION+1:
+    case 0: case 4:
       return 0; /* version=0 -> no header */
     case 1:
       return sizeof(int)+strlen(headername)+sizeof(Header_old);
     case 2:
       return sizeof(int)+strlen(headername)+sizeof(Header2);
-    case 4:
-      return sizeof(int)+strlen(headername)+sizeof(Header);
     default:
-      return sizeof(int)+strlen(headername)+sizeof(Header3);
+      return sizeof(int)+strlen(headername)+sizeof(Header);
   }
 } /* of 'headersize' */

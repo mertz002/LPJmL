@@ -37,3 +37,4 @@ LNOPTS  = -O4 -o
 LIBS	= -lm -lmass
 LM	= -lm
 SLASH	= /
+VIEWPRG	= lpjserver

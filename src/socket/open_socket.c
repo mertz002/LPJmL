@@ -34,26 +34,23 @@ Socket *open_socket(int port, /* port of TCP/IP connection */
 {
   Socket *sock;
   struct sockaddr_in name;
+  struct sockaddr fsin;
   fd_set rfds;
   struct timeval tv;
   int opt=TRUE;
   int rc;
   short token;
 #ifdef _WIN32
+  int len;
   SOCKET my_socket;
   WORD version;
   WSADATA data;
   version=MAKEWORD(1,1);
-#ifdef USE_TIMING
-  timing=0;
-#endif
   if(WSAStartup(version,&data))
     return NULL;
 #else
   int my_socket;
-#ifdef USE_TIMING
-  timing=0;
-#endif
+  socklen_t len;
 #endif
   if(isinvalid_socket(my_socket=socket(AF_INET,SOCK_STREAM,0)))
   {
@@ -112,7 +109,7 @@ Socket *open_socket(int port, /* port of TCP/IP connection */
     fputs("ERROR304: Cannot allocate memory for socket.\n",stderr);
     return NULL;
   }
-  if(isinvalid_socket(sock->channel=accept(my_socket,NULL,NULL)))
+  if(isinvalid_socket(sock->channel=accept(my_socket,&fsin,&len)))
   {
 #ifdef _WIN32
     fprintf(stderr,"ERROR309: Cannot accept socket, rc=%d\n",WSAGetLastError());

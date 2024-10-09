@@ -1,6 +1,6 @@
 /**************************************************************************************/
 /**                                                                                \n**/
-/**        d  a  i  l  y  f  i  r  e  .  c                                         \n**/
+/**        d  a  i  l  y  f  i  r  e                                               \n**/
 /**                                                                                \n**/
 /**     C implementation of LPJmL                                                  \n**/
 /**                                                                                \n**/
@@ -15,32 +15,27 @@
 /**************************************************************************************/
 
 #include "lpj.h"
+#define CG 0.2 /*cloud to ground flashes ratio */
+#define LER 0.04 /*efficiency in starting fires */
 
-#define CG 0.2   /* cloud to ground flashes ratio */
-#define LER 0.04 /* efficiency in starting fires */
-
-void dailyfire(Stand *stand,                /**< pointer to stand */
+void dailyfire(Stand *stand,            /**< pointer to stand */
                Livefuel *livefuel,
-               Real popdens,                /**< population density (capita/km2) */
-               Real avgprec,                /**< monthly averaged precipitation (mm/day) */
+               Real popdens, /**< population density (capita/km2) */
+	       Real avgprec,
                const Dailyclimate *climate, /**< daily climate data */
-               const Config *config         /**< LPJmL configuration */
+               const Config *config /**< prescribed burnt area (TRUE/FALSE) */
               )
 {
   Real fire_danger_index,human_ignition,num_fires,windsp_cover,ros_forward;
   Real burnt_area,fire_frac;
-  Real fuel_consump;
-  Stocks deadfuel_consump,livefuel_consump,livefuel_consump_pft;
-  Real surface_fi;
-  Stocks total_fire;
+  Real fuel_consump,deadfuel_consump,livefuel_consump,livefuel_consump_pft;
+  Real total_firec,surface_fi;
   Fuel fuel;
   Bool isdead;
   int p;
   Output *output;
   Pft *pft;
   Tracegas emission={0,0,0,0,0,0};
-  if((stand->type->landusetype==GRASSLAND || stand->type->landusetype==OTHERS) && !config->fire_on_grassland)
-    return;
   output=&stand->cell->output;
   initfuel(&fuel);
 
@@ -111,7 +106,7 @@ void dailyfire(Stand *stand,                /**< pointer to stand */
     num_fires=0;
     burnt_area=0;
     fire_frac=0;
-    deadfuel_consump.carbon=deadfuel_consump.nitrogen=0;
+    deadfuel_consump=0;
   }
   else
   {
@@ -120,27 +115,25 @@ void dailyfire(Stand *stand,                /**< pointer to stand */
 
   fraction_of_consumption(&fuel);
 
-  livefuel_consump.carbon=livefuel_consump.nitrogen=0;
+  livefuel_consump=0;
   foreachpft(pft,p,&stand->pftlist)
   {
     if(surface_fi>50)
     {
       livefuel_consump_pft=pft->par->livefuel_consumption(&stand->soil.litter, pft,
-                                                          &fuel, livefuel, &isdead, surface_fi, fire_frac,config);
+                                                          &fuel, livefuel, &isdead, surface_fi, fire_frac);
 #ifdef WITH_FIRE_MOISTURE
-      emission.co2+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.co2 * (livefuel->CME/0.94);
-      emission.co+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.co * (2- livefuel->CME/0.94);
+      emission.co2+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.co2 * (livefuel->CME/0.94);
+      emission.co+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.co * (2- livefuel->CME/0.94);
 #else
-      emission.co2+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.co2;
-      emission.co+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.co;
+      emission.co2+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.co2;
+      emission.co+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.co;
 #endif
-      emission.ch4+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.ch4;
-      emission.voc+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.voc;
-      emission.tpm+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.tpm;
-      emission.nox+=c2biomass(livefuel_consump_pft.carbon)*pft->par->emissionfactor.nox;
-     
-      livefuel_consump.carbon+=livefuel_consump_pft.carbon;
-      livefuel_consump.nitrogen+=livefuel_consump_pft.nitrogen;
+      emission.ch4+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.ch4;
+      emission.voc+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.voc;
+      emission.tpm+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.tpm;
+      emission.nox+=c2biomass(livefuel_consump_pft)*pft->par->emissionfactor.nox;
+      livefuel_consump+=livefuel_consump_pft;
       if(isdead)
       {
         delpft(&stand->pftlist, p);
@@ -148,24 +141,21 @@ void dailyfire(Stand *stand,                /**< pointer to stand */
       }
     }
   }
-  total_fire.carbon = (deadfuel_consump.carbon + livefuel_consump.carbon) * stand->frac;
-  total_fire.nitrogen = (deadfuel_consump.nitrogen + livefuel_consump.nitrogen);
+
+  total_firec = (deadfuel_consump + livefuel_consump) * stand->frac;
 
   /* write SPITFIRE outputs to LPJ output structures */
-  getoutput(output,FIREDI,config) +=fire_danger_index;
-  getoutput(output,NFIRE,config) +=num_fires;
-  getoutput(output,FIREF,config) += fire_frac;
-  getoutput(output,BURNTAREA,config) += burnt_area; /*ha*/
-  getoutput(output,FIREC,config)+= total_fire.carbon;
-  stand->cell->balance.fire.carbon+=total_fire.carbon;
-  getoutput(output,FIREN,config)+=total_fire.nitrogen*(1-param.q_ash)*stand->frac;
-  stand->cell->balance.fire.nitrogen+=total_fire.nitrogen*(1-param.q_ash)*stand->frac;
-  stand->soil.NO3[0]+=total_fire.nitrogen*param.q_ash;
-  output->dcflux+=total_fire.carbon;
-  getoutput(output,FIREEMISSION_CO2,config)+=emission.co2*stand->frac;
-  getoutput(output,FIREEMISSION_CO,config)+=emission.co*stand->frac;
-  getoutput(output,FIREEMISSION_CH4,config)+=emission.ch4*stand->frac;
-  getoutput(output,FIREEMISSION_VOC,config)+=emission.voc*stand->frac;
-  getoutput(output,FIREEMISSION_TPM,config)+=emission.tpm*stand->frac;
-  getoutput(output,FIREEMISSION_NOX,config)+=emission.nox*stand->frac;
+  output->mfiredi +=fire_danger_index;
+  output->mnfire +=num_fires;
+  output->firef += fire_frac;
+  output->mburntarea += burnt_area; /*ha*/
+  output->firec+= total_firec;
+  output->dcflux+=total_firec;
+  output->mfirec+= total_firec;
+  output->mfireemission.co2+=emission.co2*stand->frac;
+  output->mfireemission.co+=emission.co*stand->frac;
+  output->mfireemission.ch4+=emission.ch4*stand->frac;
+  output->mfireemission.voc+=emission.voc*stand->frac;
+  output->mfireemission.tpm+=emission.tpm*stand->frac;
+  output->mfireemission.nox+=emission.nox*stand->frac;
 }  /* of 'dailyfire' */

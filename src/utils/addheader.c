@@ -13,8 +13,9 @@
 /**************************************************************************************/
 
 #include "lpj.h"
+#include <sys/stat.h>
 
-#define USAGE "Usage: %s [-swap] [-nyear n] [-firstyear n] [-lastyear n] [-ncell n]\n       [-firstcell n] [-nbands n] [-nstep n] [-order n] [-version n] [-cellsize s]\n       [-scale s] [-id s] [-type {byte|short|int|float|double}] binfile clmfile\n"
+#define USAGE "Usage: %s [-swap] [-nyear n] [-firstyear n] [-lastyear n] [-ncell n]\n       [-firstcell n] [-nbands n] [-order n] [-version n] [-cellsize s]\n       [-scale s] [-id s] [-type {byte|short|int|float|double}] binfile clmfile\n"
 
 #define BUFSIZE (1024*1024) /* size of read buffer */
 
@@ -28,9 +29,8 @@ int main(int argc,char **argv)
   char *endptr;
   int i,index;
   size_t len;
-  long long filesize;
+  struct stat filestat;
   void *buffer;
-  int *vector;
   Bool swap;
   progname=strippath(argv[0]);
   /* set default values for header */
@@ -41,8 +41,6 @@ int main(int argc,char **argv)
   header.firstcell=0;
   header.nyear=109;
   header.nbands=12;
-  header.nstep=1;
-  header.timestep=1;
   header.order=CELLYEAR;
   header.scalar=1;
   header.datatype=LPJ_SHORT;
@@ -100,7 +98,7 @@ int main(int argc,char **argv)
         }
         if(header.nyear<=0)
         {
-          fputs("Number of years less than one.\n",stderr);
+          fputs("Number of year less than one.\n",stderr);
           return EXIT_FAILURE;
         }
       }
@@ -136,9 +134,9 @@ int main(int argc,char **argv)
           fprintf(stderr,"Invalid number '%s' for option '-firstcell'.\n",argv[index]);
           return EXIT_FAILURE;
         }
-        if(header.firstcell<0)
+        if(header.nyear<=0)
         {
-          fputs("First cell is less than zero.\n",stderr);
+          fputs("Number of years less than one.\n",stderr);
           return EXIT_FAILURE;
         }
       }
@@ -158,25 +156,6 @@ int main(int argc,char **argv)
         if(header.nbands<=0)
         {
           fputs("Number of bands less than one.\n",stderr);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[index],"-nstep"))
-      {
-        if(index==argc-1)
-        {
-          fprintf(stderr,"Argument missing for option '-nstep'.\n");
-          return EXIT_FAILURE;
-        }
-        header.nstep=strtol(argv[++index],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid number '%s' for option '-nstep'.\n",argv[index]);
-          return EXIT_FAILURE;
-        }
-        if(header.nstep<=0)
-        {
-          fputs("Number of steps less than one.\n",stderr);
           return EXIT_FAILURE;
         }
       }
@@ -228,13 +207,8 @@ int main(int argc,char **argv)
         header.order=strtol(argv[++index],&endptr,10);
         if(*endptr!='\0')
         {
-          header.order=findstr(argv[index],ordernames,4);
-          if(header.order==NOT_FOUND)
-          {
-            fprintf(stderr,"Invalid number '%s' for order.\n",argv[index]);
-            return EXIT_FAILURE;
-          }
-          header.order++;
+          fprintf(stderr,"Invalid number '%s' for option '-order'.\n",argv[index]);
+          return EXIT_FAILURE;
         }
       }
       else if(!strcmp(argv[index],"-version"))
@@ -248,17 +222,6 @@ int main(int argc,char **argv)
         if(*endptr!='\0')
         {
           fprintf(stderr,"Invalid number '%s' for option '-version'.\n",argv[index]);
-          return EXIT_FAILURE;
-        }
-        if(version<1)
-        {
-          fprintf(stderr,"Version=%d must be greater than zero.\n",version);
-          return EXIT_FAILURE;
-        }
-        if(version>CLM_MAX_VERSION)
-        {
-          fprintf(stderr,"Version %d greater than maximum version %d supported.\n",
-                  version,CLM_MAX_VERSION);
           return EXIT_FAILURE;
         }
       }
@@ -318,11 +281,10 @@ int main(int argc,char **argv)
     fprintf(stderr,"Error opening '%s': %s.\n",argv[index],strerror(errno));
     return EXIT_FAILURE;
   }
-  filesize=getfilesizep(infile);
-  if((header.order==CELLINDEX && filesize!=sizeof(int)*header.ncell+(long long)header.ncell*header.nbands*header.nstep*header.nyear*len) ||
-    (header.order!=CELLINDEX && filesize!=(long long)header.ncell*header.nbands*header.nstep*header.nyear*len))
+  fstat(fileno(infile),&filestat);
+  if(filestat.st_size!=(long long)header.ncell*header.nbands*header.nyear*len)
   {
-     fprintf(stderr,"Error: File size of '%s' does not match nyear*nbands*nstep*ncell*%d.\n",argv[index],(int)len);
+     fprintf(stderr,"Error: File size of '%s' is not multiple of nyear*nbands*ncell*%d.\n",argv[index],(int)len);
      fclose(infile);
      return EXIT_FAILURE;
   }
@@ -333,27 +295,13 @@ int main(int argc,char **argv)
     return EXIT_FAILURE;
   }
   fwriteheader(outfile,&header,id,version);
-  if(header.order==CELLINDEX)
-  {
-    filesize-=sizeof(int)*header.ncell;
-    vector=newvec(int,header.ncell);
-    if(vector==NULL)
-    {
-      printallocerr("index");
-      return EXIT_FAILURE;
-    }
-    freadint(vector,header.ncell,swap,infile);
-    if(fwrite(vector,sizeof(int),header.ncell,outfile)!=header.ncell)
-      fprintf(stderr,"Error writing index in '%s'.\n",argv[index+1]);
-    free(vector);
-  }
   buffer=malloc(BUFSIZE);
   if(buffer==NULL)
   {
     printallocerr("buffer");
     return EXIT_FAILURE;
   }
-  for(i=0;i<filesize / BUFSIZE;i++)
+  for(i=0;i<filestat.st_size / BUFSIZE;i++)
   {
     switch(len)
     {
@@ -375,23 +323,23 @@ int main(int argc,char **argv)
       return EXIT_FAILURE;
     }
   }
-  if(filesize % BUFSIZE>0)
+  if(filestat.st_size % BUFSIZE>0)
   {
     switch(len)
     {
       case 2:
-        freadshort(buffer,(filesize % BUFSIZE)/2,swap,infile);
+        freadshort(buffer,(filestat.st_size % BUFSIZE)/2,swap,infile);
         break;
       case 4:
-        freadint(buffer,(filesize % BUFSIZE)/4,swap,infile);
+        freadint(buffer,(filestat.st_size % BUFSIZE)/4,swap,infile);
         break;
       case 8:
-        freadlong(buffer,(filesize % BUFSIZE)/8,swap,infile);
+        freadlong(buffer,(filestat.st_size % BUFSIZE)/8,swap,infile);
         break;
       default:
-        fread(buffer,1,filesize % BUFSIZE,infile);
+        fread(buffer,1,filestat.st_size % BUFSIZE,infile);
     }
-    if(fwrite(buffer,1,filesize % BUFSIZE,outfile)!=filesize % BUFSIZE)
+    if(fwrite(buffer,1,filestat.st_size % BUFSIZE,outfile)!=filestat.st_size % BUFSIZE)
     {
       fprintf(stderr,"Error writing data in '%s'.\n",argv[index+1]);
       return EXIT_FAILURE;

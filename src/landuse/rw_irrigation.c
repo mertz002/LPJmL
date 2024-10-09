@@ -13,14 +13,14 @@
 /**************************************************************************************/
 
 #include "lpj.h"
+#include "agriculture.h"
 
 #define MAX_RW_IRRIG 1.0
 
 Real rw_irrigation(Stand *stand,     /**< Pointer to non-natural stand */
                    Real gp_stand,    /**< potential stomata conductance */
                    const Real wet[], /**< wet array for PFT list */
-                   Real eeq,         /**< potential evapotranspiration (mm) */
-                   const Config *config /**<  LPJmL configuration */
+                   Real pet          /**< potential evapotranspiration (mm) */
                   )                  /** \return irrigation applied (mm) */
 {
 
@@ -32,20 +32,22 @@ Real rw_irrigation(Stand *stand,     /**< Pointer to non-natural stand */
   /* calculate required irrigation amount */
   foreachpft(pft,p,&stand->pftlist)
   {
-    wr=getwr(&stand->soil,pft->par->rootdist);
+    wr=0;
+    for(l=0;l<LASTLAYER;l++)
+      wr+=pft->par->rootdist[l]*(stand->soil.w[l]+stand->soil.ice_depth[l]/stand->soil.par->whcs[l]);
 
-    if(pft->stand->type->landusetype==AGRICULTURE || (pft->stand->type->landusetype==OTHERS && config->others_to_crop))
+    if(pft->stand->type->landusetype==AGRICULTURE)
     {
-      supply=pft->par->emax*wr*(1-exp(-1.0*pft->par->sla*((Pftcrop *)pft->data)->ind.root.carbon));
-      //demand=(gp_stand>0 && pft->phen>0 && fpar(pft)>0) ? (1.0-wet[p])*eeq*param.ALPHAM/(1+param.GM/(gp_stand/pft->phen*fpar(pft))) : 0;
-      demand=(gp_stand>0 && pft->phen>0 && fpar(pft)>0) ? (1.0-wet[p])*eeq*param.ALPHAM/(1+(param.GM*param.ALPHAM)/(gp_stand/pft->phen*fpar(pft))) : 0;
+      supply=pft->par->emax*wr*(1-exp(-1.0*pft->par->sla*((Pftcrop *)pft->data)->ind.root));
+      //demand=(gp_stand>0 && pft->phen>0 && fpar(pft)>0) ? (1.0-wet[p])*pet*param.ALPHAM/(1+param.GM/(gp_stand/pft->phen*fpar(pft))) : 0;
+      demand=(gp_stand>0 && pft->phen>0 && fpar(pft)>0) ? (1.0-wet[p])*pet*param.ALPHAM/(1+(param.GM*param.ALPHAM)/(gp_stand/pft->phen*fpar(pft))) : 0;
     }
     else
     {
       supply=pft->par->emax*wr*pft->phen;
-      //demand=(gp_stand>0) ? (1.0-wet[p])*eeq*param.ALPHAM/(1+param.GM/gp_stand) : 0;
-      demand=(gp_stand>0) ? (1.0-wet[p])*eeq*param.ALPHAM/(1+(param.GM*param.ALPHAM)/gp_stand) : 0;
-    }
+      //demand=(gp_stand>0) ? (1.0-wet[p])*pet*param.ALPHAM/(1+param.GM/gp_stand) : 0;
+      demand=(gp_stand>0) ? (1.0-wet[p])*pet*param.ALPHAM/(1+(param.GM*param.ALPHAM)/gp_stand) : 0;
+   }
 
     if(wr<param.rw_irrig_thres && supply<demand && pft->phen>0.0)
     {
@@ -54,7 +56,7 @@ Real rw_irrigation(Stand *stand,     /**< Pointer to non-natural stand */
       do
       {
         if (stand->soil.freeze_depth[l]< soildepth[l])
-          irrig_apply+=max(0,(MAX_RW_IRRIG-stand->soil.w[l]-stand->soil.ice_depth[l]/stand->soil.whcs[l])*stand->soil.whcs[l]*min(1,soildepth_irrig/(soildepth[l]-stand->soil.freeze_depth[l])));
+          irrig_apply+=max(0,(MAX_RW_IRRIG-stand->soil.w[l]-stand->soil.ice_depth[l]/stand->soil.par->whcs[l])*stand->soil.par->whcs[l]*min(1,soildepth_irrig/(soildepth[l]-stand->soil.freeze_depth[l])));
         l++;
       }while((soildepth_irrig-=soildepth[l-1])>0);
     }
@@ -65,7 +67,7 @@ Real rw_irrigation(Stand *stand,     /**< Pointer to non-natural stand */
   stand->soil.rw_buffer-=irrig_apply;
 
   /* write to output */
-  getoutput(&stand->cell->output,IRRIG_RW,config)+=irrig_apply*stand->frac;
+  stand->cell->output.mirrig_rw+=irrig_apply*stand->frac;
 
   return irrig_apply;
 } /* of 'rw_irrigation' */

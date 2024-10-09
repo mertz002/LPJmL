@@ -16,11 +16,8 @@
 /**************************************************************************************/
 
 #include "lpj.h"
-#if defined IMAGE && defined COUPLED
-#define accuracy 1e-7
-#else
+
 #define accuracy 1e-4
-#endif
 
 void check_stand_fracs(const Cell *cell, /**< pointer to cell */
                        Real lakefrac     /**< lake fraction (0..1) */
@@ -37,16 +34,11 @@ void check_stand_fracs(const Cell *cell, /**< pointer to cell */
     if(stand->frac>0) 
       frac_sum+=stand->frac;
     else 
-      fail(NEGATIVE_STAND_FRAC_ERR,TRUE,"Negative or zero stand fraction %g for %s stand, lakefrac: %g, cell (%s)",
-           stand->frac,stand->type->name,lakefrac,sprintcoord(line,&cell->coord));
+      fail(NEGATIVE_STAND_FRAC_ERR,TRUE,"negative STAND_FRAC %g, lakefrac: %g, cell (%s)",
+           stand->frac,lakefrac,sprintcoord(line,&cell->coord));
   }
   
   if(fabs(frac_sum-1)>accuracy)
-#if defined IMAGE && defined COUPLED
-    fail(STAND_FRAC_SUM_ERR,TRUE,"Sum of stand fractions differs from 1 by %g, frac_sum %g, lakefrac: %g, cell (%s), reservoirfrac %g",
-         fabs(frac_sum-1),frac_sum, lakefrac,sprintcoord(line,&cell->coord),cell->ml.reservoirfrac);
-#else
-    fail(STAND_FRAC_SUM_ERR,TRUE,"Sum of stand fractions differs from 1 by %g, lakefrac: %g, cell (%s)",
+    fail(STAND_FRAC_SUM_ERR,TRUE,"STAND_FRAC_SUM-error %g lakefrac: %g, cell (%s)",
          fabs(frac_sum-1),lakefrac,sprintcoord(line,&cell->coord));
-#endif
 } /* of 'check_stand_fracs' */

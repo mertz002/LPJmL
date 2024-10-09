@@ -22,7 +22,8 @@
 #endif
 
 Bool mpi_openclimate_netcdf(Climatefile *file,    /**< climate data file */
-                            const Filename *filename, /**< filename */
+                            const char *filename, /**< filename */
+                            const char *var,      /**< variable name or NULL */
                             const char *units,    /**< units or NULL */
                             const Config *config  /**< LPJ configuration */
                            )                      /** \return TRUE on error */
@@ -30,7 +31,7 @@ Bool mpi_openclimate_netcdf(Climatefile *file,    /**< climate data file */
 #if defined(USE_NETCDF) || defined(USE_NETCDF4)
   int rc;
   if(isroot(*config))
-    rc=openclimate_netcdf(file,filename->name,filename->time,filename->var,filename->unit,units,config);
+    rc=openclimate_netcdf(file,filename,var,units,config);
 #ifdef USE_MPI
   /* broadcast return code */
   MPI_Bcast(&rc,1,MPI_INT,0,config->comm);
@@ -42,7 +43,6 @@ Bool mpi_openclimate_netcdf(Climatefile *file,    /**< climate data file */
   MPI_Bcast(&file->datatype,1,MPI_INT,0,config->comm);
   MPI_Bcast(&file->var_len,sizeof(size_t),MPI_BYTE,0,config->comm);
   MPI_Bcast(&file->time_step,1,MPI_INT,0,config->comm);
-  MPI_Bcast(&file->delta_year,1,MPI_INT,0,config->comm);
   MPI_Bcast(&file->isleap,1,MPI_INT,0,config->comm);
   MPI_Bcast(&file->n,1,MPI_INT,0,config->comm);
   MPI_Bcast(&file->firstyear,1,MPI_INT,0,config->comm);
@@ -50,10 +50,10 @@ Bool mpi_openclimate_netcdf(Climatefile *file,    /**< climate data file */
   MPI_Bcast(&file->nlon,sizeof(size_t),MPI_BYTE,0,config->comm);
   MPI_Bcast(&file->nlat,sizeof(size_t),MPI_BYTE,0,config->comm);
   MPI_Bcast(&file->is360,1,MPI_INT,0,config->comm);
-  MPI_Bcast(&file->lon_min,1,MPI_DOUBLE,0,config->comm);
-  MPI_Bcast(&file->lat_min,1,MPI_DOUBLE,0,config->comm);
-  MPI_Bcast(&file->lon_res,1,MPI_DOUBLE,0,config->comm);
-  MPI_Bcast(&file->lat_res,1,MPI_DOUBLE,0,config->comm);
+  MPI_Bcast(&file->lon_min,1,MPI_FLOAT,0,config->comm);
+  MPI_Bcast(&file->lat_min,1,MPI_FLOAT,0,config->comm);
+  MPI_Bcast(&file->lon_res,1,MPI_FLOAT,0,config->comm);
+  MPI_Bcast(&file->lat_res,1,MPI_FLOAT,0,config->comm);
   MPI_Bcast(&file->slope,1,MPI_DOUBLE,0,config->comm);
   MPI_Bcast(&file->intercept,1,MPI_DOUBLE,0,config->comm);
   MPI_Bcast(&file->offset,sizeof(size_t),MPI_BYTE,0,config->comm);

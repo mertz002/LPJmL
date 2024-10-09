@@ -17,18 +17,26 @@
 #include "lpj.h"
 #include "natural.h"
 #include "agriculture.h"
-#include "grassland.h"
-
 
 Standtype setaside_rf_stand={SETASIDE_RF,"setaside_rf",new_agriculture,
                              free_agriculture,fwrite_agriculture,
                              fread_agriculture,fprint_agriculture,
-                             daily_grassland,annual_setaside,NULL};
+#ifdef DAILY_ESTABLISHMENT
+                             daily_setaside,
+#else
+                             daily_natural,
+#endif
+                             annual_setaside,NULL};
 
 Standtype setaside_ir_stand={SETASIDE_IR,"setaside_ir",new_agriculture,
                              free_agriculture,fwrite_agriculture,
                              fread_agriculture,fprint_agriculture,
-                             daily_grassland,annual_setaside,NULL};
+#ifdef DAILY_ESTABLISHMENT
+                             daily_setaside,
+#else
+                             daily_natural,
+#endif
+                             annual_setaside,NULL};
 
 Standtype managedforest_stand={MANAGEDFOREST,"managed forest",NULL,NULL,NULL,
                                NULL,NULL,NULL,NULL,NULL};
@@ -39,5 +47,4 @@ Standtype kill_stand={KILL,"kill",NULL,free_agriculture,NULL,NULL,NULL,NULL,NULL
 Standtype agriculture_stand={AGRICULTURE,"agriculture",new_agriculture,
                              free_agriculture,fwrite_agriculture,
                              fread_agriculture,fprint_agriculture,
-                             daily_agriculture,annual_agriculture,
-                             NULL};
+                             daily_agriculture,annual_agriculture,NULL};

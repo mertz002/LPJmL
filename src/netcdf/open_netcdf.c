@@ -35,7 +35,7 @@ int open_netcdf(const char *filename,int *ncid,Bool *isopen)
   int i,rc;
   Item *item;
   if(list==NULL)
-    list=newlist(0);
+    list=newlist();
   else
   {
     for(i=0;i<getlistlen(list);i++)
@@ -62,7 +62,6 @@ int open_netcdf(const char *filename,int *ncid,Bool *isopen)
   item->filename=strdup(filename);
   if(item->filename==NULL)
   {
-    printallocerr("item");
     free(item);
     return 1;
   }
@@ -92,7 +91,6 @@ void free_netcdf(int ncid)
         if(item->count==0) /* last open file? */
         {
           free(item->filename);
-          free(item);
           nc_close(ncid);
           dellistitem(list,i);
         }

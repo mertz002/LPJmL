@@ -15,8 +15,6 @@
 #include "lpj.h"
 #include "natural.h"
 
-void fprint_natural(FILE * UNUSED(file),
-                    const Stand * UNUSED(stand),
-                    const Pftpar * UNUSED(pftpar))
+void fprint_natural(FILE * UNUSED(file),const Stand * UNUSED(stand))
 {
 } /* of 'fprint_natural' */

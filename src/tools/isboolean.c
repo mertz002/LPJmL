@@ -17,17 +17,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef USE_JSON
 #include <json-c/json.h>
+#endif
 #include "types.h"
 
 Bool isboolean(const LPJfile *file, /**< pointer to LPJ file */
-               const char *name     /**< variable name or NULL */
+               const char *name     /**< variable name */
               )                     /** \return TRUE if type is bool */
 {
+#ifdef USE_JSON
   struct json_object *item;
-  if(name==NULL)
-    return (json_object_get_type(file)==json_type_boolean);
-  if(!json_object_object_get_ex(file,name,&item))
-    return FALSE;
-  return (json_object_get_type(item)==json_type_boolean);
+  if(file->isjson)
+  {
+    if(!json_object_object_get_ex(file->file.obj,name,&item))
+      return FALSE;
+    return (json_object_get_type(item)==json_type_boolean);
+  }
+  else
+   return FALSE;
+#else
+   return FALSE;
+#endif
 } /* of 'isboolean' */

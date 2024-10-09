@@ -27,6 +27,7 @@
 /**************************************************************************************/
 
 #include "lpj.h"
+#include "agriculture.h"
 
 void withdrawal_demand(Cell *grid,          /**< LPJ grid */
                        const Config *config /**< LPJ configuration */
@@ -47,14 +48,7 @@ void withdrawal_demand(Cell *grid,          /**< LPJ grid */
       grid[cell].discharge.gir=0.0;
       /* wateruse for irrigation */
       foreachstand(stand,s,grid[cell].standlist)
-        if(stand->type->landusetype==AGRICULTURE ||
-           stand->type->landusetype==GRASSLAND ||
-           stand->type->landusetype==OTHERS ||
-           stand->type->landusetype==BIOMASS_GRASS ||
-           stand->type->landusetype==BIOMASS_TREE ||
-           stand->type->landusetype==AGRICULTURE_GRASS ||
-           stand->type->landusetype==AGRICULTURE_TREE ||
-           stand->type->landusetype==WOODPLANTATION)
+        if(stand->type->landusetype==AGRICULTURE || stand->type->landusetype==GRASSLAND || stand->type->landusetype==BIOMASS_GRASS || stand->type->landusetype==BIOMASS_TREE)
         {
           data=stand->data;
           if(data->irrigation)
@@ -64,23 +58,9 @@ void withdrawal_demand(Cell *grid,          /**< LPJ grid */
         }
 
       /* wateruse for industry, household and livestock */
-    //  grid[cell].discharge.waterdeficit+=grid[cell].discharge.wateruse;// dit moet waarschijnlijk weg
-#ifdef IMAGE
-      grid[cell].discharge.waterdeficit+=grid[cell].discharge.wateruse_wd;
-
+      grid[cell].discharge.waterdeficit+=grid[cell].discharge.wateruse;
       /* constrain build up of deficit */
-      grid[cell].discharge.waterdeficit=min(grid[cell].discharge.waterdeficit,30*grid[cell].discharge.wateruse_wd);
-
-      if (grid[cell].discharge.wateruse_wd >0)
-        grid[cell].discharge.wateruse_fraction = grid[cell].discharge.wateruse / grid[cell].discharge.wateruse_wd;
-      if (!(grid[cell].discharge.wateruse_fraction <= 1 || grid[cell].discharge.wateruse_fraction >= 0))
-        printf("ERROR: waterusefraction incorrect in cell lat %f lon %f, waterusefraction %f", grid[cell].coord.lat, grid[cell].coord.lon, grid[cell].discharge.wateruse_fraction);
-#else
-      grid[cell].discharge.waterdeficit += grid[cell].discharge.wateruse;
-
-      /* constrain build up of deficit */
-      grid[cell].discharge.waterdeficit = min(grid[cell].discharge.waterdeficit, 30 * grid[cell].discharge.wateruse);
-#endif
+      grid[cell].discharge.waterdeficit=min(grid[cell].discharge.waterdeficit,30*grid[cell].discharge.wateruse);
 
       grid[cell].discharge.wd_demand=grid[cell].discharge.waterdeficit+grid[cell].discharge.gir;
 

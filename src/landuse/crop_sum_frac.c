@@ -16,21 +16,20 @@
 
 Real crop_sum_frac(Landfrac landfrac[2], /**< land fractions */
                    int ncft,             /**< number of crop PFTs */
-                   int nagtree,          /**< number of agriculture tree PFTs */
                    Real waterfrac,       /**< lake fraction (0..1) */
                    Bool irrig            /**< for irrigated crop or not? */
                   )                      /** \return sum of land fractions */
 {
    Real factor,sumfrac,sumfracall;
 
-   sumfrac=landfrac_sum(landfrac,ncft,nagtree,irrig);
-   sumfracall=landfrac_sum(landfrac,ncft,nagtree,TRUE)+landfrac_sum(landfrac,ncft,nagtree,FALSE);
+   sumfrac=landfrac_sum(landfrac,ncft,irrig);
+   sumfracall=landfrac_sum(landfrac,ncft,TRUE)+landfrac_sum(landfrac,ncft,FALSE);
 
    /* if the cropfrac > 1- reservoirfrac, reduce the cropfrac to the maximum area */
    if(sumfracall>(1-waterfrac))
    {
      factor=(1-waterfrac)/sumfracall;
-     scalelandfrac(landfrac,ncft,nagtree,factor);
+     scalelandfrac(landfrac,ncft,factor);
    }
    else
      factor=1;

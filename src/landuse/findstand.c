@@ -15,6 +15,7 @@
 /**************************************************************************************/
 
 #include "lpj.h"
+#include "agriculture.h"
 
 int findstand(const Standlist standlist, /**< Stand list */
               Landusetype landusetype,   /**< landuse type */
@@ -23,7 +24,7 @@ int findstand(const Standlist standlist, /**< Stand list */
 {
   int s;
   const Stand *stand;
-  const Irrigation *data;
+  Irrigation *data; 
   foreachstand(stand,s,standlist)
     if(stand->type->landusetype==landusetype && stand->data!=NULL)
     {

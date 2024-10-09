@@ -21,14 +21,15 @@
 Bool annual_agriculture(Stand *stand,         /**< Pointer to stand */
                         int UNUSED(npft),     /**< number of natural pfts */
                         int UNUSED(ncft),     /**< number of crop PFTs */
+                        Real UNUSED(popdens), /**< population density (capita/km2) */
                         int UNUSED(year),     /**< simulation year */
-                        Bool UNUSED(isdaily), /**< daily temperature data? */
+                        Bool UNUSED(isdaily),
                         Bool UNUSED(intercrop), /**< enable intercropping (TRUE/FALSE) */
                         const Config * UNUSED(config)
                        )                      /** \return stand has to be killed (TRUE/FALSE) */
 {
   Irrigation *data;
   data=stand->data;
-  stand->cell->balance.soil_storage+=(data->irrig_stor+data->irrig_amount)*stand->frac*stand->cell->coord.area;
+  stand->cell->output.soil_storage+=(data->irrig_stor+data->irrig_amount)*stand->frac*stand->cell->coord.area;
   return FALSE;
 } /* of 'annual_agriculture' */

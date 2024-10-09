@@ -23,14 +23,8 @@
 
 Bool write_socket(Socket *socket,const void *buffer,int n)
 {
-#ifdef USE_TIMING
-  double tstart,tend;
-#endif
   int i,j;
   i=0;
-#ifdef USE_TIMING
-  tstart=mrun();
-#endif
   do
   {
     j=send(socket->channel,(char *)buffer+i,n,0);
@@ -39,9 +33,5 @@ Bool write_socket(Socket *socket,const void *buffer,int n)
     i+=j;
     n-=j;
   }while(n);
-#ifdef USE_TIMING
-  tend=mrun();
-  timing+=tend-tstart;
-#endif
   return FALSE;
 } /* of 'write_socket' */

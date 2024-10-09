@@ -17,17 +17,15 @@
 #include "lpj.h"
 #include "grass.h"
 
-void fprintpar_grass(FILE *file,const Pftpar *par,const Config *config)
+void fprintpar_grass(FILE *file,const Pftpar *par)
 {
   const Pftgrasspar *pargrass;
   pargrass=par->data;
   fprintf(file,"turnover:\t%g %g (yr)\n"
                "C:N ratio:\t%g %g\n"
                "reprod cost:\t%g\n",
-          1.0/pargrass->turnover.leaf,1.0/pargrass->turnover.root,
-          1.0/pargrass->nc_ratio.leaf,
-          1.0/pargrass->nc_ratio.root,
+          pargrass->turnover.leaf,pargrass->turnover.root,
+          par->respcoeff*param.k/pargrass->cn_ratio.leaf,
+          par->respcoeff*param.k/pargrass->cn_ratio.root,
           pargrass->reprod_cost);
-  if(config->with_nitrogen)
-    fprintf(file,"rel. ratio:\t%g\n",pargrass->ratio);
 } /* of 'fprintpar_grass' */

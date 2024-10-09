@@ -14,7 +14,9 @@
 
 #undef USE_MPI
 #include "lpj.h"
+#include <sys/stat.h>
 
+#define GRID2CLM_VERSION "1.0.002"
 #define USAGE "Usage: %s [-h] [-swap] [-scale s] [-cellsize c] gridfile outfile\n"
 
 int main(int argc,char **argv)
@@ -24,7 +26,7 @@ int main(int argc,char **argv)
   int i,n;
   Header header;
   Bool swap;
-  long long filesize;
+  struct stat filestat;
   char *endptr;
   swap=FALSE;
   header.nyear=0;
@@ -32,8 +34,6 @@ int main(int argc,char **argv)
   header.order=0;
   header.firstcell=0;
   header.nbands=2;
-  header.nstep=1;
-  header.timestep=1;
   header.cellsize_lon=header.cellsize_lat=0.5;
   header.datatype=LPJ_SHORT;
   header.scalar=0.01;
@@ -43,16 +43,14 @@ int main(int argc,char **argv)
     {
       if(!strcmp(argv[i],"-h"))
       {
-        printf("%s (" __DATE__ ") - adds header to gridfile for LPJmL version " LPJ_VERSION "\n\n",argv[0]);
+        printf("%s " GRID2CLM_VERSION " (" __DATE__ ") - adds header to gridfile for LPJmL C version\n",argv[0]);
         printf(USAGE
-               "\nArguments:\n"
                "-h             print this help text\n" 
                "-swap          change byte order in gridfile\n"
                "-scale s       set scale factor, default is %g\n"
                "-cellsize c    set cell size, default is %g\n"
                "gridfile       filename of binary grid data file\n"
-               "outfile        filename of CLM grid data file\n\n"
-               "(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file\n",
+               "outfile        filename of CLM grid data file\n",
                argv[0],header.scalar,header.cellsize_lon);
         return EXIT_SUCCESS;
       }
@@ -110,9 +108,9 @@ int main(int argc,char **argv)
     fprintf(stderr,"Error opening '%s': %s\n",argv[i],strerror(errno));
     return EXIT_FAILURE;
   }
-  filesize=getfilesizep(file);
-  n=filesize/sizeof(short);
-  if(filesize % (sizeof(short)*2))
+  fstat(fileno(file),&filestat);
+  n=filestat.st_size/sizeof(short);
+  if(filestat.st_size % (sizeof(short)*2))
     fprintf(stderr,"Warning: file size is not multiple of 2*short.\n"); 
   printf("Number of cells: %d\n",n/2);
   data=(short *)malloc(n*sizeof(short));

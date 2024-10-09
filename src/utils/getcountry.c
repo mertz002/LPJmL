@@ -299,13 +299,11 @@ int main(int argc,char **argv)
   Intcoord coord;
   Header header,gridheader,outheader;
   String headername;
-  int code;
-  Bool swap_country,swap_grid,rc,isregion;
+  Code code;
+  Bool swap_country,swap_grid,rc;
   float fcoord[2];
   double dcoord[2];
   outheader.nyear=1;
-  outheader.nstep=1;
-  outheader.timestep=1;
   outheader.firstcell=0;
   outheader.order=0;
   outheader.ncell=0;
@@ -338,28 +336,18 @@ int main(int argc,char **argv)
     fprintf(stderr,"Error opening '%s': %s.\n",argv[1],strerror(errno));
     return EXIT_FAILURE;
   }
-  if(freadanyheader(file,&header,&swap_country,headername,&country_version,TRUE))
+  if(freadanyheader(file,&header,&swap_country,headername,&country_version))
   {
     fprintf(stderr,"Error reading header of '%s'.\n",argv[1]);
     return EXIT_FAILURE;
   }
-  if(header.nbands==1)
-    isregion=FALSE;
-  else if(header.nbands!=2)
-  {
-    fprintf(stderr,"Invalid number of bands=%d in `%s', must be 1 or 2.\n",
-            header.nbands,argv[1]);
-    return EXIT_FAILURE;
-  }
-  else
-   isregion=TRUE;
   grid=fopen(argv[2],"rb");
   if(grid==NULL)
   {
     fprintf(stderr,"Error opening '%s': %s.\n",argv[2],strerror(errno));
     return EXIT_FAILURE;
   }
-  if(freadheader(grid,&gridheader,&swap_grid,LPJGRID_HEADER,&version,TRUE))
+  if(freadheader(grid,&gridheader,&swap_grid,LPJGRID_HEADER,&version))
   {
     fprintf(stderr,"Error reading header of '%s'.\n",argv[2]);
     return EXIT_FAILURE;
@@ -398,7 +386,7 @@ int main(int argc,char **argv)
   fwriteheader(out,&outheader,LPJGRID_HEADER,version);
   for(i=0;i<header.ncell;i++)
   {
-    if(readcountrycode(file,&code,header.datatype,isregion,swap_country))
+    if(readcountrycode(file,&code,header.datatype,swap_country))
     {
       fprintf(stderr,"Error reading country code at %d.\n",i+1);
       return EXIT_FAILURE;
@@ -406,24 +394,21 @@ int main(int argc,char **argv)
     switch(gridheader.datatype)
     {
       case LPJ_SHORT:
-        rc=readintcoord(grid,&coord,swap_grid);
-        break;
+       rc=readintcoord(grid,&coord,swap_grid);
+       break;
       case LPJ_FLOAT:
-        rc=freadfloat(fcoord,2,swap_grid,grid)!=2;
-        break;
+       rc=freadfloat(fcoord,2,swap_grid,grid)!=2;
+       break;
       case LPJ_DOUBLE:
-        rc=freaddouble(dcoord,2,swap_grid,grid)!=2;
-        break;
-      default:
-        fprintf(stderr,"Invalid datatype %d in '%s'.\n",gridheader.datatype,argv[2]);
-        return EXIT_FAILURE;
+       rc=freaddouble(dcoord,2,swap_grid,grid)!=2;
+       break;
     }
     if(rc)
     {
       fprintf(stderr,"Error reading coordinate at %d.\n",i+1);
       return EXIT_FAILURE;
     }
-    if(findcountry(country,n,code))
+    if(findcountry(country,n,code.country))
     {
       switch(gridheader.datatype)
       {
@@ -435,8 +420,6 @@ int main(int argc,char **argv)
           break;
         case LPJ_DOUBLE:
           rc=fwrite(dcoord,sizeof(double),2,out)!=2;
-          break;
-        default:
           break;
       }
       if(rc)

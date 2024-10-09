@@ -25,8 +25,7 @@ void freeoutputvar(Variable *var, /**< Variable description array */
     {
       free(var[i].name);
       free(var[i].var);
-      free(var[i].standard_name);
-      free(var[i].long_name);
+      free(var[i].descr);
       free(var[i].unit);
     }
     free(var);

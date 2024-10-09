@@ -15,8 +15,7 @@
 #include "lpj.h"
 #include "grass.h"
 
-void reduce_grass(Litter * UNUSED(litter),Pft *pft,Real factor,
-                  const Config * UNUSED(config))
+void reduce_grass(Litter * UNUSED(litter),Pft *pft,Real factor) 
 {
   pft->fpc/=factor;
   

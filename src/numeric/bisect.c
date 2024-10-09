@@ -23,34 +23,20 @@ Real bisect(Real (*fcn)(Real,void *), /**< function */
             void *data, /**< pointer to additional data for function */
             Real xacc,  /**< accuracy in x */
             Real yacc,  /**< accuracy in y */
-            int maxit,  /**< maximum number of iterations */
-            int *it     /**< iterations performed */
+            int maxit   /**< maximum number of iterations */
            )            /** \return position of zero of function */
 {
   int i;
   Real ylow,ymid,xmid;
-  Real ymin=1e9,xmin;
-  ylow=(*fcn)(xlow,data);
-  xmin=(xlow+xhigh)*0.5;
+  ylow=(*fcn)(xlow,data); 
   for(i=0;i<maxit;i++)
   {
     xmid=(xlow+xhigh)*0.5;
     if(xhigh-xlow<xacc)
-    {
-      *it=i;
       return xmid;
-    }
     ymid=(*fcn)(xmid,data);
-    if(fabs(ymid)<ymin)
-    {
-      ymin=fabs(ymid);
-      xmin=xmid;
-    }
     if(fabs(ymid)<yacc)
-    {
-      *it=i;
       return xmid;
-    }
     if(ylow*ymid<=0)
       xhigh=xmid;
     else
@@ -59,6 +45,5 @@ Real bisect(Real (*fcn)(Real,void *), /**< function */
       ylow=ymid;
     } 
   } /* of for */
-  *it=i;
-  return xmin;
+  return xmid;
 } /* of 'bisect' */

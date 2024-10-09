@@ -24,7 +24,7 @@ int main(int argc,char **argv)
   FILE *ifp1,*ifp2;
   FILE *ofp,*ofp_ngrid;
   Header header;
-  int i, j, k, c, c0;
+  int i, j, k, l, c, c0;
   int ncell;
   int *rivers;
   int value;
@@ -75,7 +75,7 @@ int main(int argc,char **argv)
   }
 
   /* reading original grid file */
-  if(freadheader(ifp1,&header,&swap_grid,LPJGRID_HEADER,&version,TRUE))
+  if(freadheader(ifp1,&header,&swap_grid,LPJGRID_HEADER,&version))
   {
     fclose(ifp1);
     fprintf(stderr,"Invalid header in original grid file.\n");
@@ -137,7 +137,7 @@ int main(int argc,char **argv)
 
   /* re-order the input, generate output with grid number of length < LEN_MAX */
   k=1;
-  c=c0=0;
+  l=c=c0=0;
   while(sum[k]!=-99)
   {
     if(c==0 && sum[k]>LEN_MAX)
@@ -146,8 +146,8 @@ int main(int argc,char **argv)
       {
     if(riversnew[i]==k)
         {
-      /* fprintf(ofp,"%d %d\n",(int)(lpjlon[i]*100.),(int)(lpjlat[i]*100.)); */
-      /* write binary file */
+	  /* fprintf(ofp,"%d %d\n",(int)(lpjlon[i]*100.),(int)(lpjlat[i]*100.)); */
+	  /* write binary file */
       rbuf2[0]=(short)(lpjlon[i]*100.);
       rbuf2[1]=(short)(lpjlat[i]*100.);
        fwrite(rbuf2,sizeof(short),2,ofp);
@@ -164,8 +164,8 @@ int main(int argc,char **argv)
         {
       if(riversnew[i]==k)
           {
-        /* fprintf(ofp,"%d %d\n",(int)(lpjlon[i]*100.),(int)(lpjlat[i]*100.)); */
-        /* write binary file */
+	    /* fprintf(ofp,"%d %d\n",(int)(lpjlon[i]*100.),(int)(lpjlat[i]*100.)); */
+	    /* write binary file */
         rbuf2[0]=(short)(lpjlon[i]*100.);
         rbuf2[1]=(short)(lpjlat[i]*100.);
          fwrite(rbuf2,sizeof(short),2,ofp);
@@ -181,6 +181,7 @@ int main(int argc,char **argv)
     /* write output of ngrid.txt */
     fprintf(ofp_ngrid,"%d\n",c0);
 
+    l++;
     c=c0=0;
   }
   fclose(ofp);

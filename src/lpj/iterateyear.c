@@ -49,42 +49,40 @@ void iterateyear(Outputfile *output,  /**< Output file data */
                 )
 {
   Dailyclimate daily;
-  Bool intercrop;
+  Bool intercrop,istimber;
   int month,dayofmonth,day;
-  int cell, s;
-  Stand *stand;
+  int cell;
   Real popdens=0; /* population density (capita/km2) */
-  Real norg_soil_agr,nmin_soil_agr,nveg_soil_agr;
+#ifdef IMAGE
+  istimber=(config->start_imagecoupling!=INT_MAX);
+#else
+  istimber=FALSE;
+#endif
   intercrop=getintercrop(input.landuse);
   for(cell=0;cell<config->ngridcell;cell++)
   {
-    initoutputdata(&grid[cell].output,ANNUAL,year,config);
-    grid[cell].balance.surface_storage=grid[cell].balance.adischarge=0;
-    grid[cell].discharge.afin_ext=0;
+    grid[cell].output.adischarge=0;
+    grid[cell].output.surface_storage=0;
     if(!grid[cell].skip)
     {
-      init_annual(grid+cell,ncft,config);
-      if(config->withlanduse)
+      init_annual(grid+cell,npft,config->nbiomass,ncft);
+      if(input.landuse!=NULL)
       {
         if(grid[cell].lakefrac<1)
         {
           /* calculate landuse change */
-          if(year>config->firstyear-config->nspinup || config->from_restart)
-            landusechange(grid+cell,npft,ncft,intercrop,year,config);
+          if(config->laimax_interpolate!=CONST_LAI_MAX)
+            laimax_manage(&grid[cell].ml.manage,config->pftpar+npft,npft,ncft,year);
+          if(year>config->firstyear-config->nspinup)
+            landusechange(grid+cell,config->pftpar,npft,ncft,config->ntypes,
+                          intercrop,istimber,year,config->pft_output_scaled);
           else if(grid[cell].ml.dam)
-            landusechange_for_reservoir(grid+cell,npft,ncft,
-                                        intercrop,year,config);
+            landusechange_for_reservoir(grid+cell,config->pftpar,npft,istimber,
+                                        intercrop,ncft,year);
         }
-#if defined IMAGE && defined COUPLED
-        setoutput_image(grid+cell,ncft,config);
+#ifdef IMAGE
+        setoutput_image(grid+cell,ncft);
 #endif
-        getnsoil_agr(&norg_soil_agr,&nmin_soil_agr,&nveg_soil_agr,grid+cell);
-        getoutput(&grid[cell].output,DELTA_NORG_SOIL_AGR,config)-=norg_soil_agr;
-        getoutput(&grid[cell].output,DELTA_NMIN_SOIL_AGR,config)-=nmin_soil_agr;
-        getoutput(&grid[cell].output,DELTA_NVEG_SOIL_AGR,config)-=nveg_soil_agr;
-        foreachstand(stand,s,(grid+cell)->standlist)
-          if(stand->type->landusetype==GRASSLAND)
-            getoutput(&grid[cell].output,DELTAC_MGRASS,config)-=standstocks(stand).carbon*stand->frac;
       }
       initgdd(grid[cell].gdd,npft);
     } /*gridcell skipped*/
@@ -95,17 +93,17 @@ void iterateyear(Outputfile *output,  /**< Output file data */
   {
     for(cell=0;cell<config->ngridcell;cell++)
     {
-      grid[cell].discharge.mfin=grid[cell].discharge.mfout=grid[cell].ml.mdemand=0.0;
-      grid[cell].output.mpet=0;
-      if(grid[cell].ml.dam)
-        grid[cell].ml.resdata->mprec_res=0;
-      initoutputdata(&((grid+cell)->output),MONTHLY,year,config);
+      grid[cell].discharge.mfin=grid[cell].discharge.mfout=grid[cell].output.mdischarge=grid[cell].output.mwateramount=grid[cell].ml.mdemand=0.0;
       if(!grid[cell].skip)
       {
-        initclimate_monthly(input.climate,&grid[cell].climbuf,cell,month,grid[cell].seed);
+        initoutput_monthly(&((grid+cell)->output));
+        /* Initialize random seed */
+        if(israndomprec(input.climate))
+          srand48(config->seed+(config->startgrid+cell)*year*month);
+        initclimate_monthly(input.climate,&grid[cell].climbuf,cell,month);
 
-#if defined IMAGE && defined COUPLED
-        monthlyoutput_image(&grid[cell].output,input.climate,cell,month,config);
+#ifdef IMAGE
+        monthlyoutput_image(&grid[cell].output,input.climate,cell,month);
 #endif
 
 #ifdef DEBUG
@@ -138,79 +136,59 @@ void iterateyear(Outputfile *output,  /**< Output file data */
           if(config->ispopulation)
             popdens=getpopdens(input.popdens,cell);
           grid[cell].output.dcflux=0;
-          initoutputdata(&((grid+cell)->output),DAILY,year,config);
+          initoutput_daily(&(grid[cell].output.daily));
           /* get daily values for temperature, precipitation and sunshine */
           dailyclimate(&daily,input.climate,&grid[cell].climbuf,cell,day,
                        month,dayofmonth);
-#ifdef SAFE
-          if(degCtoK(daily.temp)<0)
-          {
-            if(degCtoK(daily.temp)<(-0.2)) /* avoid precision errors: only fail if values are more negative than -0.2 */
-              fail(INVALID_CLIMATE_ERR,FALSE,"Temperature=%g K less than zero for cell %d at day %d",degCtoK(daily.temp),cell+config->startgrid,day);
-            daily.temp=-273.15;
-          }
-          if(config->with_radiation)
-          {
-            if(daily.swdown<0)
-              fail(INVALID_CLIMATE_ERR,FALSE,"Short wave radiation=%g W/m2 less than zero for cell %d at day %d",daily.swdown,cell+config->startgrid,day);
-          }
-          else
-          {
-            if(daily.sun<-1e-5 || daily.sun>100)
-              fail(INVALID_CLIMATE_ERR,FALSE,"Cloudiness=%g%% not in [0,100] for cell %d at day %d",daily.sun,cell+config->startgrid,day);
-            getoutput(&grid[cell].output,SUN,config)+=daily.sun;
-          }
-          if(config->with_nitrogen && daily.windspeed<0)
-            fail(INVALID_CLIMATE_ERR,FALSE,"Wind speed=%g less than zero for cell %d at day %d",daily.windspeed,cell+config->startgrid,day);
-#endif
-          if(config->with_radiation==CLOUDINESS && daily.sun<0)
-            daily.sun=0;
           /* get daily values for temperature, precipitation and sunshine */
-          getoutput(&grid[cell].output,TEMP,config)+=daily.temp;
-          getoutput(&grid[cell].output,PREC,config)+=daily.prec;
+          grid[cell].output.daily.temp=daily.temp;
+          grid[cell].output.daily.prec=daily.prec;
+          grid[cell].output.daily.sun=daily.sun;
 
 #ifdef DEBUG
           printf("day=%d cell=%d\n",day,cell);
-          fflush(stdout);
 #endif
           update_daily(grid+cell,co2,popdens,daily,day,npft,
-                       ncft,year,month,intercrop,config);
+                       ncft,year,month,output->withdaily,intercrop,config);
         }
       }
 
       if(config->river_routing)
       {
-        if(config->withlanduse)
+        if(input.landuse!=NULL || input.wateruse!=NULL)
           withdrawal_demand(grid,config);
-        if(config->extflow)
-        {
-          if(getextflow(input.extflow,grid,day-1,year))
-             fail(INVALID_EXTFLOW_ERR,FALSE,"Cannot read external flow data");
-        }
+
         drain(grid,month,config);
 
-        if(config->withlanduse)
-          wateruse(grid,npft,ncft,month,config);
+        if(input.landuse!=NULL || input.wateruse!=NULL)
+          wateruse(grid,npft,ncft,config);
       }
 
-      if(config->withdailyoutput && day<NDAYYEAR && year>=config->outputyear)
-        /* postpone last timestep until after annual processes */
-        fwriteoutput(output,grid,year,day-1,DAILY,npft,ncft,config);
+      if(output->withdaily && year>=config->outputyear)
+        fwriteoutput_daily(output,grid,day-1,year,config);
 
       day++;
     } /* of 'foreachdayofmonth */
     /* Calculate resdata->mdemand as sum of ddemand to reservoir, instead of the sum of evaporation deficits per cell*/
     for(cell=0;cell<config->ngridcell;cell++)
     {
+      if(config->river_routing)
+      {
+        if(grid[cell].discharge.next<0)
+          grid[cell].output.adischarge+=grid[cell].output.mdischarge;           /* only endcell outflow */
+        grid[cell].output.mdischarge*=1e-9/ndaymonth[month];                    /* daily mean discharge per month in 1.000.000 m3 per cell */
+        grid[cell].output.mres_storage*=1e-9/ndaymonth[month];                  /* mean monthly reservoir storage in 1.000.000 m3 per cell */
+        grid[cell].output.mwateramount*=1e-9/ndaymonth[month];                  /* mean wateramount per month in 1.000.000 m3 per cell */
+      }
       if(!grid[cell].skip)
         update_monthly(grid+cell,getmtemp(input.climate,&grid[cell].climbuf,
                        cell,month),getmprec(input.climate,&grid[cell].climbuf,
-                       cell,month),month,config);
+                       cell,month),month);
     } /* of 'for(cell=0;...)' */
 
-    if(year>=config->outputyear && month<NMONTH-1)
-      /* write out monthly output, postpone last timestep until after annual processes */
-      fwriteoutput(output,grid,year,month,MONTHLY,npft,ncft,config);
+    if(year>=config->outputyear)
+      /* write out monthly output */
+      fwriteoutput_monthly(output,grid,month,year,config);
 
   } /* of 'foreachmonth */
 
@@ -218,8 +196,8 @@ void iterateyear(Outputfile *output,  /**< Output file data */
   {
     if(!grid[cell].skip)
     {
-      grid[cell].landcover=(config->prescribe_landcover!=NO_LANDCOVER) ? getlandcover(input.landcover,cell) : NULL;
-      update_annual(grid+cell,npft,ncft,year,daily.isdailytemp,intercrop,config);
+      update_annual(grid+cell,npft,ncft,popdens,year,
+                    (config->prescribe_landcover!=NO_LANDCOVER) ? getlandcover(input.landcover,cell) : NULL,daily.isdailytemp,intercrop,config);
 #ifdef SAFE
       check_fluxes(grid+cell,year,cell,config);
 #endif
@@ -232,61 +210,28 @@ void iterateyear(Outputfile *output,  /**< Output file data */
         printcell(grid+cell,1,npft,ncft,config);
       }
 #endif
-      if(config->equilsoil)
-      {
-        if((year-(config->firstyear-config->nspinup+param.veg_equil_year-param.equisoil_years))%param.equisoil_interval==0 && 
-           (year-(config->firstyear-config->nspinup+param.veg_equil_year-param.equisoil_years))/param.equisoil_interval>=0 && 
-           (year-(config->firstyear-config->nspinup+param.veg_equil_year-param.equisoil_years))/param.equisoil_interval<param.nequilsoil)
-          equilveg(grid+cell,npft+ncft);
+      if(config->nspinup>veg_equil_year &&
+         year==config->firstyear-config->nspinup+veg_equil_year && !config->from_restart)
+        equilveg(grid+cell);
 
-        if(year==(config->firstyear-config->nspinup+param.veg_equil_year))
-          equilsom(grid+cell,npft+ncft,config->pftpar,TRUE);
- 
-        if((year-(config->firstyear-config->nspinup+param.veg_equil_year))%param.equisoil_interval==0 && 
-           (year-(config->firstyear-config->nspinup+param.veg_equil_year))/param.equisoil_interval>0 && 
-           (year-(config->firstyear-config->nspinup+param.veg_equil_year))/param.equisoil_interval<param.nequilsoil)
-          equilsom(grid+cell,npft+ncft,config->pftpar,FALSE);
+      if(config->nspinup>soil_equil_year &&
+         year==config->firstyear-config->nspinup+soil_equil_year && !config->from_restart)
+        equilsom(grid+cell,npft+ncft,config->pftpar);
 
-        if(param.equisoil_fadeout>0)
-        {
-          if(year==(config->firstyear-config->nspinup+param.veg_equil_year+param.equisoil_interval*param.nequilsoil))
-            equilveg(grid+cell,npft+ncft);
-
-          if(year==(config->firstyear-config->nspinup+param.veg_equil_year+param.equisoil_interval*param.nequilsoil+param.equisoil_fadeout))
-            equilsom(grid+cell,npft+ncft,config->pftpar,FALSE);
-        }
-
-      }
-      if(config->withlanduse)
-      {
-        getnsoil_agr(&norg_soil_agr,&nmin_soil_agr,&nveg_soil_agr,grid+cell);
-        getoutput(&grid[cell].output,DELTA_NORG_SOIL_AGR,config)+=norg_soil_agr;
-        getoutput(&grid[cell].output,DELTA_NMIN_SOIL_AGR,config)+=nmin_soil_agr;
-        getoutput(&grid[cell].output,DELTA_NVEG_SOIL_AGR,config)+=nveg_soil_agr;
-        foreachstand(stand,s,(grid+cell)->standlist)
-          if(stand->type->landusetype==GRASSLAND)
-            getoutput(&grid[cell].output,DELTAC_MGRASS,config)+=standstocks(stand).carbon*stand->frac;
-      }
     }
     if(config->river_routing)
     {
-#ifdef IMAGE
-      grid[cell].balance.surface_storage = grid[cell].discharge.dmass_lake + grid[cell].discharge.dmass_river + grid[cell].discharge.dmass_gw;
-#else
-      grid[cell].balance.surface_storage=grid[cell].discharge.dmass_lake+grid[cell].discharge.dmass_river;
-#endif
+      grid[cell].output.surface_storage = grid[cell].discharge.dmass_lake + grid[cell].discharge.dmass_river + grid[cell].discharge.dmass_gw;
+      
       if(grid[cell].ml.dam)
-        grid[cell].balance.surface_storage+=reservoir_surface_storage(grid[cell].ml.resdata);
+        grid[cell].output.surface_storage+=reservoir_surface_storage(grid[cell].ml.resdata);
     }
   } /* of for(cell=0,...) */
 
   if(year>=config->outputyear)
   {
-    /* write last monthly/daily output timestep after annual processes */
-    fwriteoutput(output,grid,year,NMONTH-1,MONTHLY,npft,ncft,config);
-    if(config->withdailyoutput)
-      fwriteoutput(output,grid,year,NDAYYEAR-1,DAILY,npft,ncft,config);
     /* write out annual output */
-    fwriteoutput(output,grid,year,0,ANNUAL,npft,ncft,config);
+    fwriteoutput_annual(output,grid,year,config);
+    fwriteoutput_pft(output,grid,npft,ncft,year,config);
   }
-} /* of 'iterateyear' */
+} /* of 'iterateyear_river' */

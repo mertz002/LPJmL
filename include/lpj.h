@@ -28,7 +28,7 @@
 #ifndef LPJ_H /* Already included? */
 #define LPJ_H
 
-#define LPJ_VERSION  "5.9.7"
+#define LPJ_VERSION  "4.0.002"
 
 /* Necessary header files */
 
@@ -45,20 +45,14 @@
 #include <mpi.h> /* Include MPI header for parallel program */
 #endif
 
-/* Definition of datatypes */
-
 typedef struct cell Cell;   /* forward declaration of cell */
 typedef struct stand Stand; /* forward declaration of stand */
-typedef struct config Config; /* forward declaration of stand */
 
 /*  Defined header files for LPJ */
 
-#include "conf.h"
 #include "list.h"
 #include "types.h"
 #include "swap.h"
-#include "numeric.h"
-#include "header.h"
 #include "channel.h"
 #include "queue.h"
 #include "pnet.h"
@@ -69,22 +63,26 @@ typedef struct config Config; /* forward declaration of stand */
 #include "pftpar.h"
 #include "output.h"
 #include "date.h"
-#include "pft.h"
 #include "manage.h"
+#include "pft.h"
 #include "config.h"
 #include "cdf.h"
 #include "outfile.h"
 #include "param.h"
+#include "header.h"
 #include "climate.h"
+#ifdef IMAGE            /* Compile with IMAGE coupler? */
 #include "image.h"
-#include "coupler.h"
+#endif
 #include "cropdates.h"
 #include "reservoir.h"
 #include "landuse.h"
 #include "errmsg.h"
 #include "pftlist.h"
 #include "spitfire.h"
+#include "numeric.h"
 #include "units.h"
+#include "conf.h"
 #include "stand.h"
 #include "crop.h"
 #include "discharge.h"
@@ -93,29 +91,20 @@ typedef struct config Config; /* forward declaration of stand */
 #include "tree.h"
 #include "biomass_tree.h"
 #include "landuse.h"
-#include "woodplantation.h"
 #include "biomes.h"
 
 /* Definition of constants */
-
-#ifdef _WIN32              /* are we on a Windows machine? */
-#ifdef IMAGE
-#define cpp_cmd "cl /E /DIMAGE /nologo"  /* C preprocessor command for Windows */
-#else
-#define cpp_cmd "cl /E /nologo"  /* C preprocessor command for Windows */
-#endif
-#else
-#define cpp_cmd "cpp"  /* C preprocessor command for Unix */
-#endif
 
 /* Environment variables */
 
 #define LPJROOT "LPJROOT"            /* LPJ root directory */
 #define LPJPREP "LPJPREP"            /* preprocessor command */
+#define LPJCONFIG "LPJCONFIG"        /* default LPJ configuration filename */
 #define LPJOPTIONS "LPJOPTIONS"      /* LPJ runtime options */
 #define LPJINPUT "LPJINPATH"         /* path for input files */
 #define LPJOUTPUT "LPJOUTPATH"       /* path for output files */
 #define LPJRESTART "LPJRESTARTPATH"  /* path for restart file */
+#define LPJOUTPUTMETHOD "LPJOUTPUT"  /* default output method */
 
 /* Declaration of variables */
 
@@ -124,23 +113,22 @@ extern char *lpj_usage;
 /* Declaration of functions */
 
 extern Cell *newgrid(Config *,const Standtype [],int,int,int);
-extern Bool fwriterestart(const Cell[],int,int,int,const char *,Bool,const Config *);
+extern Bool fwriterestart(const Cell[],int,int,int,const char *,const Config *);
 extern FILE *openrestart(const char *,Config *,int,Bool *);
 extern void copyright(const char *);
 extern void printlicense(void);
-extern void help(const char *);
+extern void help(const char *,const char *);
 extern void fprintflux(FILE *file,Flux,Real,int,const Config *);
-extern void fprintcsvflux(FILE *file,Flux,Real,Real,int,const Config *);
-extern void failonerror(const Config *,int,int,const char *);
 #ifdef USE_MPI
+extern void failonerror(const Config *,int,int,const char *);
 extern Bool iserror(int,const Config *);
 #else
+#define failonerror(config,rc,errorcode,msg) if(rc) fail(errorcode,FALSE,msg)
 #define iserror(rc,config) rc
 #endif
 
 /* Definition of macros */
 
 #define printflux(flux,total,year,config) fprintflux(stdout,flux,total,year,config)
-#define printcsvflux(flux,total,scale,year,config) fprintcsvflux(stdout,flux,total,scale,year,config)
 
 #endif

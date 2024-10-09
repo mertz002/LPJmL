@@ -18,27 +18,30 @@
 
 #include "lpj.h"
 
-#define checkptr(ptr) if(ptr==NULL) { printallocerr(#ptr); return NULL; }
+#ifdef _WIN32              /* are we on a Windows machine? */
+#define cpp_cmd "cl /E /nologo"  /* C preprocessor command for Windows */
+#else
+#define cpp_cmd "cpp"  /* C preprocessor command for Unix */
+#endif
 
 FILE *openconfig(Config *config,      /**< configuration struct */
+                 const char *dflt_filename, /**< default name of configuration file */
                  int *argc,           /**< pointer to the number of arguments */
                  char ***argv,        /**< pointer to the argument vector  */
                  const char *usage    /**< usage information string or NULL */
                 )                     /** \return file pointer of open file or NULL */
 
 {
-  char *lpjpath=NULL,*lpjinc,*env_options,*pos;
+  char *cmd,*lpjpath,*lpjinc,*filter,*env_options,*pos;
   char **options;
   char *endptr;
   Bool iscpp;
   FILE *file;
   int i,len,dcount;
-  config->nopp=FALSE;
-  config->cmd=NULL;
-  config->filter=getenv(LPJPREP);
-  if(config->filter==NULL)
+  filter=getenv(LPJPREP);
+  if(filter==NULL)
   {
-    config->filter=cpp_cmd;
+    filter=cpp_cmd;
     iscpp=TRUE;
   }
   else
@@ -47,54 +50,38 @@ FILE *openconfig(Config *config,      /**< configuration struct */
   if(pos==NULL)
     config->outputdir=NULL;
   else
-  {
     config->outputdir=strdup(pos);
-    checkptr(config->outputdir);
-  }
   pos=getenv(LPJINPUT);
   if(pos==NULL)
     config->inputdir=NULL;
   else
-  {
     config->inputdir=strdup(pos);
-    checkptr(config->inputdir);
-  }
   pos=getenv(LPJRESTART);
   if(pos==NULL)
     config->restartdir=NULL;
   else
-  {
     config->restartdir=strdup(pos);
-    checkptr(config->restartdir);
-  }
+  env_options=getenv(LPJOUTPUTMETHOD);
+  config->port=DEFAULT_PORT;
   config->param_out=FALSE;
-  config->pedantic=FALSE;
-  config->ofiles=FALSE;
   config->scan_verbose=ERR; /* NO_ERR would suppress also error messages */
-  pos=getenv(LPJWAIT);
+#ifdef IMAGE
+  config->image_inport=DEFAULT_IMAGE_INPORT;
+  config->image_outport=DEFAULT_IMAGE_OUTPORT;
+  config->image_host=getenv(LPJIMAGE);
+  pos=getenv(LPJWAITIMAGE);
   if(pos!=NULL)
   {
-    config->wait=strtol(pos,&endptr,10);
+    config->wait_image=strtol(pos,&endptr,10);
     if(*endptr!='\0')
     {
       if(isroot(*config))
-        fprintf(stderr,"ERROR193: Invalid number '%s' for wait in environment variable.\n",pos);
-      return NULL;
-    }
-    if(config->wait<0)
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR193: Invalid number %d for wait in environment variable, must be >=0.\n",config->wait);
+        fprintf(stderr,"ERROR193: Invalid number '%s' for IMAGE wait in environment variable.\n",pos);
       return NULL;
     }
   }
   else
-    config->wait=DEFAULT_WAIT;
-
-#if defined IMAGE && defined COUPLED
-  config->image_inport=DEFAULT_IMAGE_INPORT;
-  config->image_outport=DEFAULT_IMAGE_OUTPORT;
-  config->image_host=getenv(LPJIMAGE);
+    config->wait_image=WAIT_IMAGE;
   if(config->image_host==NULL)
     config->image_host=DEFAULT_IMAGE_HOST;
   else
@@ -127,36 +114,67 @@ FILE *openconfig(Config *config,      /**< configuration struct */
        }
     }
   }
+#endif
+  if(env_options==NULL)
+#ifdef USE_MPI
+    config->outputmethod=LPJ_GATHER;
 #else
-  config->coupler_port=DEFAULT_COUPLER_PORT;
-  config->coupled_host=getenv(LPJCOUPLEDHOST);
-  if(config->coupled_host==NULL)
-    config->coupled_host=DEFAULT_COUPLED_HOST;
-  else
+    config->outputmethod=LPJ_FILES;
+#endif
+#ifdef USE_MPI
+  else if(!strcmp(env_options,"mpi2"))
+    config->outputmethod=LPJ_MPI2;
+  else if(!strcmp(env_options,"gather"))
+    config->outputmethod=LPJ_GATHER;
+#else
+  else if(!strcmp(env_options,"write"))
+    config->outputmethod=LPJ_FILES;
+#endif
+  else if(!strncmp(env_options,"socket",6))
   {
-    pos=strchr(config->coupled_host,':');
-    if(pos!=NULL)
+    config->outputmethod=LPJ_SOCKET;
+    if(env_options[6]=='=')
     {
-      *pos='\0';
-       config->coupler_port=strtol(pos+1,&endptr,10);
-       if(pos+1==endptr || config->coupler_port<1 || config->coupler_port>USHRT_MAX)
-       {
-         if(isroot(*config))
-           fprintf(stderr,"ERROR193: Invalid number %d for coupled port.\n",
-                   config->coupler_port);
-         return NULL;
-       }
+      config->hostname=env_options+7;
+      pos=strchr(config->hostname,':');
+      if(pos!=NULL)
+      {
+        *pos='\0';
+        config->port=strtol(pos+1,&endptr,10);
+        if(endptr==pos+1 || *endptr!='\0' || config->port<1  || config->port>USHRT_MAX)
+        {
+          if(isroot(*config))
+            fprintf(stderr,
+                    "ERROR169: Invalid port number for output method socket.\n");
+          return NULL;
+        }
+      }
+    }
+    else 
+    {
+      if(isroot(*config))
+      {
+        fprintf(stderr,
+                "ERROR168: Hostname missing for output method socket.\n");
+        if(usage!=NULL)
+          fprintf(stderr,usage,(*argv)[0]);
+      }
+      return NULL;
     }
   }
-#endif
-
-  env_options=getenv(LPJOPTIONS);
-  options=newvec(char *,(env_options==NULL) ? *argc : *argc+1);
-  if(options==NULL)
+  else
   {
-    printallocerr("options");
+    if(isroot(*config))
+    {
+      fprintf(stderr,"ERROR163: Invalid output method '%s'.\n",env_options);
+      if(usage!=NULL)
+        fprintf(stderr,usage,(*argv)[0]);
+    }
     return NULL;
   }
+  env_options=getenv(LPJOPTIONS);
+  options=newvec(char *,(env_options==NULL) ? *argc : *argc+1);
+  check(options);
   dcount=0;
   len=1;
   /* parse command line arguments */
@@ -170,6 +188,7 @@ FILE *openconfig(Config *config,      /**< configuration struct */
         options[dcount++]=(*argv)[i];
         len+=strlen((*argv)[i])+1;
       }
+#ifdef IMAGE
       else if(!strcmp((*argv)[i],"-wait"))
       {
         if(i==*argc-1)
@@ -185,24 +204,32 @@ FILE *openconfig(Config *config,      /**< configuration struct */
         }
         else
         {
-          config->wait=strtol((*argv)[++i],&endptr,10);
+          config->wait_image=strtol((*argv)[++i],&endptr,10);
           if(*endptr!='\0')
           {
             if(isroot(*config))
-              fprintf(stderr,"ERROR193: Invalid number '%s' for wait in option.\n",(*argv)[i]);
-            free(options);
-            return NULL;
-          }
-          if(config->wait<0)
-          {
-            if(isroot(*config))
-              fprintf(stderr,"ERROR193: Invalid number %d for wait in option, must be >=0.\n",config->wait);
+              fprintf(stderr,"ERROR193: Invalid number '%s' for IMAGE wait in option.\n",(*argv)[i]);
             free(options);
             return NULL;
           }
         }
       }
-#if defined IMAGE && defined COUPLED
+      else if(!strcmp((*argv)[i],"-pp"))
+      {
+        if(i==*argc-1)
+        {
+          if(isroot(*config))
+          {
+            fprintf(stderr,"ERROR164: Argument missing for '-pp' option.\n");
+            if(usage!=NULL)
+              fprintf(stderr,usage,(*argv)[0]);
+          }
+          free(options);
+          return NULL;
+        }
+        filter=(*argv)[++i];
+        iscpp=FALSE;
+      }
       else if(!strcmp((*argv)[i],"-image"))
       {
         if(i==*argc-1)
@@ -251,66 +278,9 @@ FILE *openconfig(Config *config,      /**< configuration struct */
            }
         }
       }
-#else
-      else if(!strcmp((*argv)[i],"-couple"))
-      {
-        if(i==*argc-1)
-        {
-          if(isroot(*config))
-          {
-            fprintf(stderr,"ERROR164: Argument missing for '-couple' option.\n");
-            if(usage!=NULL)
-              fprintf(stderr,usage,(*argv)[0]);
-          }
-          free(options);
-          return NULL;
-        }
-        else
-        {
-           config->coupled_host=(*argv)[++i];
-           pos=strchr(config->coupled_host,':');
-           if(pos!=NULL)
-           {
-             *pos='\0';
-             config->coupler_port=strtol(pos+1,&endptr,10);
-             if(pos+1==endptr || config->coupler_port<1
-                              || config->coupler_port>USHRT_MAX)
-             {
-               if(isroot(*config))
-                 fprintf(stderr,
-                         "ERROR193: Invalid number %d for coupled port.\n",
-                         config->coupler_port);
-               free(options);
-               return NULL;
-             }
-           }
-        }
-      }
 #endif
-      else if(!strcmp((*argv)[i],"-nopp"))
-        config->nopp=TRUE;
-      else if(!strcmp((*argv)[i],"-pp"))
-      {
-        if(i==*argc-1)
-        {
-          if(isroot(*config))
-          {
-            fprintf(stderr,"ERROR164: Argument missing for '-pp' option.\n");
-            if(usage!=NULL)
-              fprintf(stderr,usage,(*argv)[0]);
-          }
-          free(options);
-          return NULL;
-        }
-        config->filter=(*argv)[++i];
-        iscpp=FALSE;
-      }
       else if(!strcmp((*argv)[i],"-param"))
         config->param_out=TRUE;
-      else if(!strcmp((*argv)[i],"-pedantic"))
-        config->pedantic=TRUE;
-      else if(!strcmp((*argv)[i],"-ofiles"))
-        config->ofiles=TRUE;
       else if(!strcmp((*argv)[i],"-vv"))
         config->scan_verbose=VERB;
       else if(!strcmp((*argv)[i],"-inpath"))
@@ -331,7 +301,6 @@ FILE *openconfig(Config *config,      /**< configuration struct */
         {
           free(config->inputdir);
           config->inputdir=strdup((*argv)[++i]);
-          checkptr(config->inputdir);
         }
       }
       else if(!strcmp((*argv)[i],"-outpath"))
@@ -352,7 +321,6 @@ FILE *openconfig(Config *config,      /**< configuration struct */
         {
           free(config->outputdir);
           config->outputdir=strdup((*argv)[++i]);
-          checkptr(config->outputdir);
         }
       }
       else if(!strcmp((*argv)[i],"-restartpath"))
@@ -372,7 +340,6 @@ FILE *openconfig(Config *config,      /**< configuration struct */
         {
           free(config->restartdir);
           config->restartdir=strdup((*argv)[++i]);
-          checkptr(config->restartdir);
         }
       }
 #ifdef WITH_FPE
@@ -380,6 +347,77 @@ FILE *openconfig(Config *config,      /**< configuration struct */
         /* enable floating point exceptions, core file will be generated */
         enablefpe();
 #endif
+      else if(!strcmp((*argv)[i],"-output"))
+      {
+        if(i==*argc-1)
+        {
+          if(isroot(*config))
+          {
+            fprintf(stderr,
+                    "ERROR164: Argument missing for '-output' option.\n");
+            if(usage!=NULL)
+              fprintf(stderr,usage,(*argv)[0]);
+          }
+          free(options);
+          return NULL;
+        }
+#ifdef USE_MPI
+        else if(!strcmp((*argv)[i+1],"mpi2"))
+          config->outputmethod=LPJ_MPI2;
+        else if(!strcmp((*argv)[i+1],"gather"))
+          config->outputmethod=LPJ_GATHER;
+#else
+        else if(!strcmp((*argv)[i+1],"write"))
+          config->outputmethod=LPJ_FILES;
+#endif
+        else if(!strncmp((*argv)[i+1],"socket",6))
+        {
+          config->outputmethod=LPJ_SOCKET;
+          if((*argv)[i+1][6]=='=')
+          {
+            config->hostname=&((*argv)[i+1][7]);
+            pos=strchr(config->hostname,':');
+            if(pos!=NULL)
+            {
+              *pos='\0';
+              config->port=strtol(pos+1,&endptr,10);
+              if(endptr==pos+1 || *endptr!='\0' || config->port<1
+                               || config->port>USHRT_MAX)
+              {
+                if(isroot(*config))
+                  fprintf(stderr,"ERROR169: Invalid port number %d for output method socket.\n",
+                          config->port);
+                free(options);
+                return NULL;
+              }
+            }
+          }
+          else 
+          {
+            if(isroot(*config))
+            {
+              fprintf(stderr,"ERROR168: Hostname missing for output method socket.\n");
+              if(usage!=NULL)
+                fprintf(stderr,usage,(*argv)[0]);
+            }
+            free(options);
+            return NULL;
+          }
+        }
+        else
+        {
+          if(isroot(*config))
+          {
+            fprintf(stderr,"ERROR163: Invalid output method '%s'.\n",
+                    (*argv)[i+1]);
+            if(usage!=NULL)
+              fprintf(stderr,usage,(*argv)[0]);
+          }
+          free(options);
+          return NULL;
+        }
+        i++;
+      }
       else
       {
         if(isroot(*config))
@@ -395,18 +433,7 @@ FILE *openconfig(Config *config,      /**< configuration struct */
     else
       break;
   }
-  if(i==*argc)
-  {
-    if(isroot(*config))
-    {
-      fprintf(stderr,"ERROR164: Configuration filename missing.\n");
-      if(usage!=NULL)
-        fprintf(stderr,usage,(*argv)[0]);
-    }
-    free(options);
-    return NULL;
-  }
-  config->filename=(*argv)[i++];
+  config->filename=(i==*argc)  ? dflt_filename : (*argv)[i++];
   /* check whether config file exists */
   if(getfilesize(config->filename)==-1)
   {
@@ -415,71 +442,51 @@ FILE *openconfig(Config *config,      /**< configuration struct */
     free(options);
     return NULL;
   }
-  else if(isdir(config->filename))
-  {
+  /* adjust argc and argv */
+  *argv+=i;
+  *argc-=i;
+  lpjpath=getenv(LPJROOT);
+  if(lpjpath==NULL || !iscpp) /* Is LPJROOT environment variable defined? */
+  { /* no */
     if(isroot(*config))
-      fprintf(stderr,"ERROR241: File '%s' is a directory, must be a file.\n",config->filename);
-    free(options);
-    return NULL;
+      fprintf(stderr,"WARNING019: Environment variable '%s' not set.\n",
+              LPJROOT);
+    lpjpath=NULL;
   }
-  else if(getfilesize(config->filename)==0)
-  {
-    if(isroot(*config))
-      fprintf(stderr,"ERROR242: File '%s' is empty.\n",config->filename);
-    free(options);
-    return NULL;
-  }
-  if(config->nopp)
-    file=fopen(config->filename,"r");
   else
-  {
-    /* adjust argc and argv */
-    *argv+=i;
-    *argc-=i;
-    if(env_options!=NULL)
-    {
-      options[dcount++]=env_options;
-      len+=strlen(env_options)+1;
-    }
-    lpjpath=getenv(LPJROOT);
-    if(lpjpath==NULL || !iscpp) /* Is LPJROOT environment variable defined? */
-    { /* no */
-      if(isroot(*config))
-        fprintf(stderr,"WARNING019: Environment variable '%s' not set.\n",
-                LPJROOT);
-      lpjpath=NULL;
-    }
-    else
-    { /* yes, include LPJROOT directory in search path for includes */
-      lpjinc=malloc(strlen(lpjpath)+3);
-      checkptr(lpjinc);
-      options[dcount++]=strcat(strcpy(lpjinc,"-I"),lpjpath);
-      len+=strlen(lpjinc)+1;
-    }
-    len+=strlen(config->filter);
-    if(config->rank!=0)
-#ifdef _WIN32
-      len+=strlen(" 2>nul:");
-#else
-      len+=strlen(" 2>/dev/null");
-#endif
-    config->cmd=malloc(strlen(config->filename)+len+1);
-    checkptr(config->cmd);
-    strcat(strcpy(config->cmd,config->filter)," ");
-    /* concatenate options for cpp command */
-    for(i=0;i<dcount;i++)
-      strcat(strcat(config->cmd,options[i])," ");
-    strcat(config->cmd,config->filename);
-    if(config->rank!=0)
-#ifdef _WIN32
-      strcat(config->cmd," 2>nul:"); /* only task 0 sends error messages */
-#else
-      strcat(config->cmd," 2>/dev/null"); /* only task 0 sends error messages */
-#endif
-    if(lpjpath!=NULL)
-      free(lpjinc);
-    file=popen(config->cmd,"r"); /* open pipe, output of cpp goes to file */
+  { /* yes, include LPJROOT directory in search path for includes */
+    lpjinc=malloc(strlen(lpjpath)+3);
+    options[dcount++]=strcat(strcpy(lpjinc,"-I"),lpjpath);
+    len+=strlen(lpjinc)+1;
   }
+  if(env_options!=NULL)
+  {
+    options[dcount++]=env_options;
+    len+=strlen(env_options)+1;
+  }
+  len+=strlen(filter);
+  if(config->rank!=0)
+#ifdef _WIN32
+    len+=strlen(" 2>nul:");
+#else
+    len+=strlen(" 2>/dev/null");
+#endif
+  cmd=malloc(strlen(config->filename)+len+1);
+  strcat(strcpy(cmd,filter)," ");
+  /* concatenate options for cpp command */
+  for(i=0;i<dcount;i++)
+    strcat(strcat(cmd,options[i])," ");
+  strcat(cmd,config->filename);
+  if(config->rank!=0)
+#ifdef _WIN32
+    strcat(cmd," 2>nul:"); /* only task 0 sends error messages */
+#else
+    strcat(cmd," 2>/dev/null"); /* only task 0 sends error messages */
+#endif
+  if(lpjpath!=NULL)
+    free(lpjinc);
+  file=popen(cmd,"r"); /* open pipe, output of cpp goes to file */
+  free(cmd);
   if(file==NULL)
   {
     if(isroot(*config))
@@ -491,7 +498,7 @@ FILE *openconfig(Config *config,      /**< configuration struct */
   if(isroot(*config))
   {
     len=printf("Reading configuration from '%s'",config->filename);
-    if(!config->nopp && (dcount>1 || (dcount && lpjpath==NULL)))
+    if(dcount>1 || (dcount && lpjpath==NULL))
     {
       len+=printf(" with options ");
       if(lpjpath!=NULL)

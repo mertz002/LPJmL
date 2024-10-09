@@ -19,7 +19,7 @@ void irrig_amount_reservoir(Cell grid[],          /**< LPJ grid */
   Real *in,*out;
   int i,cell,k;
 
-  grid-=config->startgrid-config->firstgrid;
+  grid-=config->startgrid;
   out=(Real *)pnet_output(config->irrig_res);
   in=(Real *)pnet_input(config->irrig_res);
   for(i=0;i<pnet_outlen(config->irrig_res);i++)

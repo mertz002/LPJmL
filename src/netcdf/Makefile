@@ -25,14 +25,13 @@ OBJS    = create_netcdf.$O close_netcdf.$O write_float_netcdf.$O\
           opendata_netcdf.$O readdata_netcdf.$O input_netcdf.$O\
           getvar_netcdf.$O readintdata_netcdf.$O readshortdata_netcdf.$O\
           write_int_netcdf.$O mpi_openclimate_netcdf.$O open_netcdf.$O\
-          openfile_netcdf.$O flush_netcdf.$O readmap_netcdf.$O\
-          checkcoord.$O getattr_netcdf.$O getvarname_netcdf.$O
+          create1_netcdf.$O create1_pft_netcdf.$O openfile_netcdf.$O
 
 INC     = ../../include
 LIBDIR  = ../../lib
 LIB     = libcdf.$A
 
-HDRS    = $(INC)/buffer.h $(INC)/coord.h $(INC)/lpj.h $(INC)/outfile.h\
+HDRS    = $(INC)/buffer.h $(INC)/coord.h $(INC)/lpj.h\
           $(INC)/climate.h $(INC)/date.h $(INC)/swap.h\
           $(INC)/pftpar.h $(INC)/types.h $(INC)/header.h $(INC)/pftlist.h\
           $(INC)/errmsg.h $(INC)/numeric.h $(INC)/channel.h $(INC)/stand.h\

@@ -2,7 +2,9 @@
 /**                                                                                \n**/
 /**                      t  x  t  2  c  l  m  .  c                                 \n**/
 /**                                                                                \n**/
-/**     Converts text files into LPJ climate data files                            \n**/
+/**     Converts CRU data files into LPJ climate data files                        \n**/
+/**     CRU data files have to be in the format specified in                       \n**/
+/**     http://www.cru.uea.ac.uk/~timm/grid/CRU_TS_2_1.html                        \n**/
 /**                                                                                \n**/
 /** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
 /** authors, and contributors see AUTHORS file                                     \n**/
@@ -16,415 +18,211 @@
 
 #include "lpj.h"
 
-#define USAGE "Usage: txt2clm [-h] [-version v] [-cellindex] [-scale s] [-float] [-int] [-nbands n] [-nstep n] [-cellsize size]\n               [-firstcell n] [-ncell n] [-firstyear f] [-header id] [-csv c] txtfile clmfile\n"
+#define TXT2CLM_VERSION "1.0.005"
+#define USAGE "Usage: txt2clm [-h] [-yearcell] [-scale s] [-float] crufile clmfile [gridfile]\n"
 
-static int getfloat(FILE *file,char sep,float *value)
-{
-  String s;
-  int c,len;
-  char *endptr;
-  len=0;
-  while((c=fgetc(file))!=EOF)
-  {
-    if(len==STRING_LEN)
-      return 0;
-    if(c=='\n' || c==sep)
-    {
-      s[len]='\0';
-      *value=(float)strtod(s,&endptr);
-      if(*endptr=='\0')
-        return 1;
-      fprintf(stderr,"Invalid number '%s'.\n",s);
-      return 0;
-    }
-    s[len++]=(char)c;
-  }
-  return 0;
-} /* of 'getfloat' */
-
-static int getint(FILE *file,char sep,int *value)
-{
-  String s;
-  int c,len;
-  char *endptr;
-  len=0;
-  while((c=fgetc(file))!=EOF)
-  {
-    if(len==STRING_LEN)
-      return 0;
-    if(c=='\n' || c==sep)
-    {
-      s[len]='\0';
-      *value=strtol(s,&endptr,10);
-      if(*endptr=='\0')
-        return 1;
-      fprintf(stderr,"Invalid number '%s'.\n",s);
-      return 0;
-    }
-    s[len++]=(char)c;
-  }
-  return 0;
-} /* of 'getint' */
+typedef short Data[NMONTH];
+typedef float Data_float[NMONTH];
 
 int main(int argc,char **argv)
 {
-  FILE *file,*out;
-  float multiplier;
+  FILE *file,*gridfile;
+  float scale,multiplier;
   char *endptr;
-  float value;
-  short s;
-  int data;
+  char num[6];
+  int missing,lon,lat;
+  Data *data;
+  Data_float *fdata;
+  Coord start,end,grid;
+  String line;
   Header header;
-  int version;
-  char *id;
-  int i,iarg,rc;
-  char sep;
+  int i,j,k,item,n,xsize,ysize;
+  Type datatype;
   /* set default values */
   header.order=CELLYEAR;
-  header.firstyear=1901;
-  header.nbands=12;
-  header.nstep=1;
-  header.timestep=1;
-  header.firstcell=0;
-  header.ncell=67420;
   multiplier=1;
-  header.datatype=LPJ_SHORT;
-  header.cellsize_lon=header.cellsize_lat=0.5;
-  id=LPJ_CLIMATE_HEADER;
-  version=LPJ_CLIMATE_VERSION;
-  sep='\0';
+  datatype=LPJ_SHORT;
   /* parse command line options */
-  for(iarg=1;iarg<argc;iarg++)
-    if(argv[iarg][0]=='-')
+  for(i=1;i<argc;i++)
+    if(argv[i][0]=='-')
     {
-      if(!strcmp(argv[iarg],"-h") || !strcmp(argv[iarg],"--help"))
+      if(!strcmp(argv[i],"-h"))
       {
-        printf("   txt2clm (" __DATE__ ") Help\n"
-               "   ==========================\n\n"
-               "Convert text files to clm data files for LPJmL version " LPJ_VERSION "\n\n");
+        printf("txt2clm " TXT2CLM_VERSION " (" __DATE__ ") - convert cru ASCII files to\n"
+               "        clm data files for LPJ C version\n");
         printf(USAGE
                "Arguments:\n"
-               "-h,--help    print this help text\n"
-               "-version     set version, default is %d\n"
-               "-cellindex   set order to cell index\n"
-               "-csv c       file is in CSV format with separator c\n"
-               "-float       write data as float, default is short\n"
-               "-int         write data as int, default is short\n"
-               "-nbands n    number of bands, default is %d\n"
-               "-nstep n     number of steps, default is %d\n"
-               "-firstcell n index of first cell\n"
-               "-ncell n     number of cells, default is %d\n"
-               "-firstyear f first year, default is %d\n"
-               "-scale s     scale data by a factor of s\n"
-               "-cellsize s  cell size, default is %g\n"
-               "-header id   clm header string, default is '%s'\n"
-               "txtfile      filename of text file\n"
-               "clmfile      filename of clm data file\n\n"
-               "(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file\n",
-               version,header.nbands,header.nstep,header.ncell,header.firstyear,header.cellsize_lon,id);
+               "-h          print this help text\n" 
+               "-yearcell   does not revert order in cru file\n"
+               "-float      write data as float, default is short\n"
+               "-scale s    scale data by a factor of s\n"
+               "crufile     filename of cru data file\n"
+               "clmfile     filename of clm data file\n"
+               "gridfile    filename of grid data file\n");
         return EXIT_SUCCESS;
       }
-      else if(!strcmp(argv[iarg],"-float"))
-        header.datatype=LPJ_FLOAT;
-      else if(!strcmp(argv[iarg],"-int"))
-        header.datatype=LPJ_INT;
-      else if(!strcmp(argv[iarg],"-cellindex"))
-        header.order=CELLINDEX;
-      else if(!strcmp(argv[iarg],"-scale"))
+      if(!strcmp(argv[i],"-yearcell"))
+        header.order=YEARCELL;
+      else if(!strcmp(argv[i],"-float"))
+        datatype=LPJ_FLOAT;
+      else if(!strcmp(argv[i],"-scale"))
       {
-        if(iarg==argc-1)
+        if(i==argc-1)
         {
           fputs("Argument missing after '-scale' option.\n"
                 USAGE,stderr);
           return EXIT_FAILURE;
         }
-        multiplier=(float)strtod(argv[++iarg],&endptr);
+        multiplier=(float)strtod(argv[++i],&endptr);
         if(*endptr!='\0')
         {
           fprintf(stderr,"Invalid value '%s' for option '-scale'.\n",
-                  argv[iarg]);
+                  argv[i]);
           return EXIT_FAILURE;
         }
-        if(multiplier<=0)
-        {
-          fprintf(stderr,"Scale=%g must be greater than zero.\n",multiplier);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-cellsize"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-cellsize' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        header.cellsize_lon=header.cellsize_lat=(float)strtod(argv[++iarg],&endptr);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-cellsize'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-        if(header.cellsize_lon<=0)
-        {
-          fprintf(stderr,"Cell size=%g must be greater than zero.\n",header.cellsize_lon);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-nbands"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-nbands' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        header.nbands=strtol(argv[++iarg],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-nbands'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-        if(header.nbands<1)
-        {
-          fprintf(stderr,"Number of bands=%d must be greater than zero.\n",header.nbands);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-csv"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-csv' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        sep=argv[++iarg][0];
-      }
-
-      else if(!strcmp(argv[iarg],"-nstep"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-nstep' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        header.nstep=strtol(argv[++iarg],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-nstep'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-        if(header.nstep<1)
-        {
-          fprintf(stderr,"Number of steps=%d must be greater than zero.\n",header.nstep);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-version"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-version' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        version=strtol(argv[++iarg],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-version'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-        if(version<1)
-        {
-          fprintf(stderr,"Version=%d must be greater than zero.\n",version);
-          return EXIT_FAILURE;
-        }
-        if(version>CLM_MAX_VERSION)
-        {
-          fprintf(stderr,"Version %d greater than maximum version %d supported.\n",
-                  version,CLM_MAX_VERSION);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-firstcell"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-firstcell' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        header.firstcell=strtol(argv[++iarg],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-firstcell'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-ncell"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-ncell' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        header.ncell=strtol(argv[++iarg],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-ncell'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-        if(header.ncell<1)
-        {
-          fprintf(stderr,"Number of cells=%d must be greater than zero.\n",header.ncell);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-firstyear"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-firstyear' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        header.firstyear=strtol(argv[++iarg],&endptr,10);
-        if(*endptr!='\0')
-        {
-          fprintf(stderr,"Invalid value '%s' for option '-firstyear'.\n",
-                  argv[iarg]);
-          return EXIT_FAILURE;
-        }
-      }
-      else if(!strcmp(argv[iarg],"-header"))
-      {
-        if(iarg==argc-1)
-        {
-          fputs("Argument missing after '-header' option.\n"
-                USAGE,stderr);
-          return EXIT_FAILURE;
-        }
-        id=argv[++iarg];
       }
       else
       {
-        fprintf(stderr,"Error: Invalid option '%s'.\n",argv[iarg]);
+        fprintf(stderr,"Error: invalid option '%s'.\n",argv[i]);
         fprintf(stderr,USAGE);
         return EXIT_FAILURE;
       }
     }
-    else
+    else 
       break;
-  if(argc<iarg+2)
+  if(argc<i+2)
   {
     fputs("Filename(s) missing.\n"
           USAGE,stderr);
     return EXIT_FAILURE;
   }
-  file=fopen(argv[iarg],"r");
+  file=fopen(argv[i],"r");
   if(file==NULL)
   {
-    fprintf(stderr,"Error opening '%s': %s\n",argv[iarg],strerror(errno));
+    fprintf(stderr,"Error opening '%s': %s\n",argv[i],strerror(errno));
     return EXIT_FAILURE;
   }
-  header.nyear=0;
-  header.scalar=1/multiplier;
-  out=fopen(argv[iarg+1],"wb");
-  if(out==NULL)
+  /* skip first three lines */
+  for(n=0;n<3;n++)
   {
-    fprintf(stderr,"Error creating '%s': %s\n",argv[iarg+1],strerror(errno));
-    return EXIT_FAILURE;
+    fgets(line,STRING_LEN,file);
+    printf("HDR: %s",line);
   }
-  fwriteheader(out,&header,id,version);
-  if(header.order==CELLINDEX)
+  /* parse header */
+  fscanf(file,"[Long=%lf, %lf] [Lati= %lf, %lf] [Grid X,Y= %d, %d]\n",
+         &start.lon,&end.lon,&start.lat,&end.lat,&xsize,&ysize);
+  fscanf(file,"[Boxes= %d] [Years=%d-%d] [Multi= %f] [Missing=%d]\n",
+         &header.ncell,&header.firstyear,&header.nyear,&scale,&missing);
+  printf("First year:%d\n"
+         "Last year: %d\n"
+         "Number of cells: %d\n"
+         "Resolution: %g x %g\n"
+         "Byte order in output files: %s\n",
+         header.firstyear,header.nyear,header.ncell,
+         (end.lon-start.lon)/xsize,(end.lat-start.lat)/ysize,
+         bigendian() ? "big-endian" : "little-endian");
+  header.firstcell=0;
+  header.cellsize_lon=header.cellsize_lat=0.5;
+  if(datatype==LPJ_SHORT)
   {
-    for(i=0;i<header.ncell;i++)
+    data=newvec(Data,header.ncell*header.nyear);
+    if(data==NULL)
     {
-      if(sep)
-        rc=getint(file,sep,&data);
-      else
-        rc=fscanf(file,"%d",&data);
-      if(rc!=1)
-      {
-        fprintf(stderr,"Unexpected end of file in '%s' reading cell index.\n",argv[iarg]);
-        return EXIT_FAILURE;
-      }
-      if(fwrite(&data,sizeof(int),1,out)!=1)
-      {
-        fprintf(stderr,"Error writing data in '%s': %s.\n",argv[iarg+1],strerror(errno));
-        return EXIT_FAILURE;
-      }
+      printallocerr("data");
+      return EXIT_FAILURE;
     }
   }
-  do
+  else
   {
-    if(header.datatype==LPJ_INT)
+    fdata=newvec(Data_float,header.ncell*header.nyear);
+    if(fdata==NULL)
     {
-      for(i=0;i<header.ncell*header.nbands*header.nstep;i++)
+      printallocerr("data");
+      return EXIT_FAILURE;
+    }
+  }
+  if(argc>i+2)
+  {
+    gridfile=fopen(argv[i+2],"wb");
+    if(gridfile==NULL)
+    {
+      fprintf(stderr,"Error creating '%s': %s\n",argv[i+2],strerror(errno));
+      return EXIT_FAILURE;
+    }
+    header.nyear=1;
+    header.nbands=2;
+    header.scalar=0.01;
+    header.datatype=LPJ_SHORT;
+    fwriteheader(gridfile,&header,LPJGRID_HEADER,LPJGRID_VERSION);
+  }
+  else 
+    gridfile=NULL;
+  num[5]='\0';
+  header.nyear-=header.firstyear-1;
+  header.scalar=multiplier/scale;
+  for(n=0;n<header.ncell;n++)
+  {
+    if(fscanf(file,"Grid-ref= %d, %d\n",&lon,&lat)!=2)
+    {
+      fprintf(stderr,"Error reading cell=%d\n",n);
+      return EXIT_FAILURE;
+    }
+#ifdef DEBUG
+    printf("%d %d\n",lon,lat);
+#endif
+    if(gridfile!=NULL)
+    {
+      grid.lon=start.lon+(end.lon-start.lon)/xsize*(lon-1);
+      grid.lat=start.lat+(end.lat-start.lat)/ysize*(lat-1);
+#ifdef DEBUG
+      printf("%f %f\n",grid.lon,grid.lat);
+#endif
+      writecoord(gridfile,&grid);
+    }
+    for(k=0;k<header.nyear;k++)
+    {
+      fgets(line,STRING_LEN,file);
+      for(j=0;j<NMONTH;j++)
       {
-        if(sep)
-          rc=getint(file,sep,&data);
+        item=atoi(strncpy(num,line+j*5,5));
+        if(datatype==LPJ_SHORT)
+          data[k+n*header.nyear][j]=(short)(item*scale);
         else
-          rc=fscanf(file,"%d",&data);
-        if(rc!=1)
-          break;
-        if(fwrite(&data,sizeof(data),1,out)!=1)
-        {
-          fprintf(stderr,"Error writing data in '%s': %s.\n",argv[iarg+1],strerror(errno));
-          return EXIT_FAILURE;
-        }
+          fdata[k+n*header.nyear][j]=item*scale;
       }
     }
+  }
+  if(gridfile!=NULL) 
+    fclose(gridfile);
+  file=fopen(argv[i+1],"wb");
+  if(file==NULL)
+  {
+    fprintf(stderr,"Error creating '%s': %s\n",argv[i+1],strerror(errno));
+    return EXIT_FAILURE;
+  }
+  header.nbands=NMONTH;
+  header.datatype=datatype;
+  fwriteheader(file,&header,LPJ_CLIMATE_HEADER,LPJ_CLIMATE_VERSION);
+  if(datatype==LPJ_SHORT)
+  {
+    if(header.order==CELLYEAR)
+      for(i=0;i<header.nyear;i++)
+        for(j=0;j<header.ncell;j++)
+          fwrite(data+j*header.nyear+i,sizeof(Data),1,file);
     else
-      for(i=0;i<header.ncell*header.nbands*header.nstep;i++)
-      {
-        if(sep)
-          rc=getfloat(file,sep,&value);
-        else
-          rc=fscanf(file,"%g",&value);
-        if(rc!=1)
-          break;
-        if(header.datatype==LPJ_SHORT)
-        {
-          if(value*multiplier<SHRT_MIN || value*multiplier>SHRT_MAX)
-             fprintf(stderr,"WARNING: Data overflow %g in year %d at cell %d and band %d\n",
-                     value*multiplier,header.nyear,i/header.nbands/header.nstep+1,i % (header.nbands*header.nstep)+1);
-          s=(short)(value*multiplier);
-          if(fwrite(&s,sizeof(short),1,out)!=1)
-          {
-            fprintf(stderr,"Error writing data in '%s': %s.\n",argv[iarg+1],strerror(errno));
-            return EXIT_FAILURE;
-          }
-        }
-        else
-        {
-          if(fwrite(&value,sizeof(float),1,out)!=1)
-          {
-            fprintf(stderr,"Error writing data in '%s': %s.\n",argv[iarg+1],strerror(errno));
-            return EXIT_FAILURE;
-          }
-        }
-    }
-    if(i==header.ncell*header.nbands*header.nstep)
-      header.nyear++;
-    else if(i!=0)
-      fprintf(stderr,"Cannot read data in year %d at cell %d and band %d.\n",
-              header.nyear+1,i / header.nbands/header.nstep+1,i % (header.nbands*header.nstep)+1);
-    else if(!feof(file))
-      fprintf(stderr,"End of file not reached in '%s'.\n",argv[iarg]);
-  } while(rc==1);
+      fwrite(data,sizeof(Data),header.nyear*header.ncell,file);
+    free(data);
+  }
+  else
+  {
+    if(header.order==CELLYEAR)
+      for(i=0;i<header.nyear;i++)
+        for(j=0;j<header.ncell;j++)
+          fwrite(fdata+j*header.nyear+i,sizeof(Data_float),1,file);
+      else
+        fwrite(fdata,sizeof(Data_float),header.nyear*header.ncell,file);
+    free(fdata);
+  }
   fclose(file);
-  rewind(out);
-  fwriteheader(out,&header,id,version);
-  fclose(out);
   return EXIT_SUCCESS;
 } /* of 'main' */

@@ -17,7 +17,7 @@
 CC	= xlc
 DEBUGFLAGS  = -g -ma
 OPTFLAGS  = -O2 -qipa  -qarch=pwr4 -qtune=pwr4 -ma
-LPJFLAGS  = -DUSE_RAND48 -DWITH_FPE -DUSE_NETCDF -D_LARGE_FILES
+LPJFLAGS  = -DUSE_RAND48 -DWITH_FPE -DUSE_NETCDF
 NETCDF_INC      = -I/usr/local/include
 NETCDF_LIB      = /usr/local/lib
 O	= o
@@ -32,3 +32,4 @@ LINKMAIN= cc
 MKDIR	= mkdir -p
 LIBS	= -lm -lmass -bmaxdata:0x80000000 -L$(NETCDF_LIB) -lnetcdf
 SLASH	= /
+VIEWPRG	= lpjserver

@@ -16,31 +16,38 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#ifdef USE_JSON
 #include <json-c/json.h>
+#endif
 #include "types.h"
 
-LPJfile *fscanstruct(LPJfile *file,    /**< pointer to LPJ file               */
-                     const char *name, /**< name of variable                  */
-                     Verbosity verb    /**< verbosity level (NO_ERR,ERR,VERB) */
-                    )                  /** \return pointer to object or NULL on error */
+Bool fscanstruct(const LPJfile *file, /**< pointer to LPJ file               */
+                 LPJfile  *s,         /**< pointer to LPJ file struct        */
+                 const char *name,    /**< name of variable                  */
+                 Verbosity verb       /**< verbosity level (NO_ERR,ERR,VERB) */
+                )                     /** \return TRUE on error              */
 {
+#ifdef USE_JSON
   struct json_object *item;
-  if(name==NULL)
-    item=file;
-  else
+  if(file->isjson)
   {
-    if(!json_object_object_get_ex(file,name,&item))
+    if(!json_object_object_get_ex(file->file.obj,name,&item))
     {
       if(verb)
         fprintf(stderr,"ERROR225: Name '%s' for object not found.\n",name);
-      return NULL;
+      return TRUE;
     }
+    if(json_object_get_type(item)!=json_type_object)
+    {
+      if(verb)
+        fprintf(stderr,"ERROR226: Type of '%s' is not an object.\n",name);
+      return TRUE;
+    }
+    s->isjson=TRUE;
+    s->file.obj=item;
+    return FALSE;
   }
-  if(json_object_get_type(item)!=json_type_object)
-  {
-    if(verb)
-      fprintf(stderr,"ERROR226: Type of '%s' is not an object.\n",name);
-    return NULL;
-  }
-  return item;
+#endif
+  *s=*file;
+  return FALSE;
 } /* of 'fscanstruct' */

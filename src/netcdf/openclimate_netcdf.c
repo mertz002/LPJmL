@@ -23,9 +23,7 @@
 
 Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
                         const char *filename, /**< filename */
-                        const char *time_name,/**< time name or NULL */
                         const char *var,      /**< variable name or NULL */
-                        const char *var_units,/**< unit of variable or NULL */
                         const char *units,    /**< units or NULL */
                         const Config *config  /**< LPJ configuration */
                        )                      /** \return TRUE on error */
@@ -34,12 +32,10 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
   char *s,*c,*unit,*name;
   int rc,var_id,time_id,ndims,*dimids;
   int *time;
-  int m=0,d=0,time_diff;
+  int m=0,d=0;
   double *date;
   size_t len,time_len;
-  char var_name[NC_MAX_NAME];
   Bool isopen,isdim;
-  file->isopen=FALSE;
   if(filename==NULL || file==NULL)
     return TRUE;
   rc=open_netcdf(filename,&file->ncid,&isopen);
@@ -49,24 +45,18 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
             filename,nc_strerror(rc));
     return TRUE;
   }
-  if(time_name==NULL)
-  {
-    rc=nc_inq_varid(file->ncid,"time",&var_id);
-    if(rc)
-      rc=nc_inq_varid(file->ncid,"TIME",&var_id);
-  }
-  else
-    rc=nc_inq_varid(file->ncid,time_name,&var_id);
+  rc=nc_inq_varid(file->ncid,"time",&var_id);
+  if(rc)
+    rc=nc_inq_varid(file->ncid,"TIME",&var_id);
   if(rc)  /* time axis not found */
     file->time_step=MISSING_TIME;
   else
-  {
+  { 
     rc=nc_inq_varndims(file->ncid,var_id,&ndims);
     error("time dim",rc);
     if(ndims!=1)
     {
-      fprintf(stderr,"ERROR408: Invalid number %d of dimensions for time in '%s', must be 1.\n",
-              ndims,filename);
+      fprintf(stderr,"ERROR408: Invalid number of dimensions for time in '%s'.\n",filename);
       free_netcdf(file->ncid);
       return TRUE;
     }
@@ -83,7 +73,7 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
       }
       nc_get_att_text(file->ncid, var_id, "units",s);
       s[len]='\0';
-      if(!strcasecmp(YEARS_NAME,s))
+      if(!strcmp("Years",s)|| !strcmp("years",s))
       {
         file->time_step=YEAR;
         time=newvec(int,time_len);
@@ -105,10 +95,6 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
           return TRUE;
         }
         file->firstyear=time[0];
-        if(time_len>1)
-          file->delta_year=time[1]-time[0];
-        else
-          file->delta_year=1;
         free(time);
       }
       else if(!strcmp("day as %Y%m%d.%f",s))
@@ -133,7 +119,7 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
           return TRUE;
         }
         file->firstyear=(int)(date[0]/10000);
-        free(date);
+        free(date); 
       }
       else
       {
@@ -186,50 +172,20 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
         {
           file->time_step=YEAR;
           file->firstyear+=time[0];
-          if(time_len>1)
-            file->delta_year=time[1]-time[0];
-          else
-            file->delta_year=1;
         }
         else if(!strcmp(name,"days"))
         {
-          if(time[1]-time[0]==1)
-            file->time_step=DAY;
-          else if(time[1]-time[0]==NDAYYEAR)
-            file->time_step=YEAR;
-          else
-            file->time_step=MONTH;
+          file->time_step=(time[1]-time[0]==1) ? DAY : MONTH;
           file->firstyear+=time[0]/NDAYYEAR;
         }
         else if(strstr(name,"months")!=NULL)
         {
-          if(time_len==1)
-            file->time_step=YEAR;
-          else
-            file->time_step=MONTH;
+          file->time_step=MONTH;
           file->firstyear+=time[0]/12;
         }
         else if(!strcmp(name,"hours"))
         {
-          if(time_len==1)
-            file->time_step=YEAR;
-          {
-            if(time_len>2)
-              time_diff=time[2]-time[1];
-            else
-              time_diff=time[1]-time[0];
-            if(time_diff<24)
-            {
-              fprintf(stderr,"ERROR437: Sub-daily time step %dh not allowed '%s'.\n",
-                      time_diff,filename);
-              free(name);
-              free(time);
-              free_netcdf(file->ncid);
-              free(s);
-              return TRUE;
-            }
-            file->time_step=(time_diff==24) ? DAY : MONTH;
-          }
+          file->time_step=(time[1]-time[0]==24) ? DAY : MONTH;
           file->firstyear+=time[0]/NDAYYEAR/24;
         }
         else
@@ -337,11 +293,8 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
       file->nyear=1;
       file->n=config->ngridcell;
       break;
-    case SECOND:
-      fputs("ERROR436: Invalid time step second.\n",stderr);
-      return TRUE;
   }
-  if(getvar_netcdf(file,filename,var,var_units,units,config))
+  if(getvar_netcdf(file,filename,var,units,config))
   {
     free_netcdf(file->ncid);
     return TRUE;
@@ -356,9 +309,8 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
   {
     if(ndims!=2 && ndims!=3)
     {
-      nc_inq_varname(file->ncid,file->varid,var_name);
-      fprintf(stderr,"ERROR408: Invalid number of dimensions %d for variable '%s' in '%s', must be 2 or 3.\n",
-              ndims,var_name,filename);
+      fprintf(stderr,"ERROR408: Invalid number of dimensions %d in '%s'.\n",
+              ndims,filename);
       free_netcdf(file->ncid);
       return TRUE;
     }
@@ -368,9 +320,8 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
   {
     if(ndims!=3 && ndims!=4)
     {
-      nc_inq_varname(file->ncid,file->varid,var_name);
-      fprintf(stderr,"ERROR408: Invalid number of dimensions %d for variable '%s' in '%s', must be 3 or 4.\n",
-              ndims,var_name,filename);
+      fprintf(stderr,"ERROR408: Invalid number of dimensions %d in '%s'.\n",
+              ndims,filename);
       free_netcdf(file->ncid);
       return TRUE;
     }
@@ -386,12 +337,11 @@ Bool openclimate_netcdf(Climatefile *file,    /**< climate data file */
       return TRUE;
     }
     nc_inq_vardimid(file->ncid,file->varid,dimids);
-    nc_inq_dimlen(file->ncid,dimids[(file->time_step==MISSING_TIME) ? 0 : 1],&file->var_len);
+    nc_inq_dimlen(file->ncid,dimids[1],&file->var_len);
     free(dimids);
   }
   else
     file->var_len=1;
-  file->isopen=TRUE;
   return FALSE;
 #else
   fputs("ERROR401: NetCDF input is not supported by this version of LPJmL.\n",stderr);

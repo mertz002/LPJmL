@@ -1,63 +1,47 @@
-.TH cdf2clm 1  "USER COMMANDS"
+.TH cdf2clm 1  "June 26, 2013" "version 1.0.001" "USER COMMANDS"
 .SH NAME
 cdf2clm \- convert NetCDF files into CLM files
 .SH SYNOPSIS
 .B cdf2clm
-[\-h] [\-v] [\-scale factor] [\-units u] [\-var name] [\-time name] [\-map name] [\-id string] [\-version v] [\-float] [\-zero] [\-json] [\-o clmfile]
-gridfile netcdffile ...
+[\-v] [\-scale factor] [\-units u] [\-var name] [\-id string] [\-version v] [\-float] [\-o clmfile] 
+gridfile clmfile ...
 .SH DESCRIPTION
-Program converts NetCDF input data into CLM input data.
+Program converts NetCDF input data into CLM input data. 
 .SH OPTIONS
 .TP
-\-h,\--help
-Print help text.
-.TP
-\-v,\--verbose
-Print name of NetCDF files.
+\-v
+print name of netcdf files
 .TP
 \-scale factor
-Scaling factor for CLM files. Default is 1. If factor differs from 1 and -float option is set a warning is printed and scaling factor reset to 1.
-.TP
+scaling factor for CLM files. Default is one
 \-units u
-Set unit to convert from  NetCDF file.
+set unit to convert from  NetCDF file
 .TP
-\-var name
-Variable name in NetCDF file.
+\-var name 
+variable name in NetCDF file
 .TP
-\-time name
-Name of time in NetCDF file, default is "time" or "TIME".
-.TP
-\-map name
-Name of map in NetCDF file. If specified the map is read and put into the JSON metafile.
-.TP
-\-id string
-LPJ header string in clm file.
+\-id string 
+LPJ header string in clm file
 .TP
 \-version v
-Version of clm header, default is 3.
+version of clm header, default is 3 
 .TP
 \-float
-Write float values in clm file, default is short.
-.TP
-\-zero
-Write zero values in clm file if data is not found.
-.TP
-\-json
-JSON metafile is created with suffix '.json'.
+write float values in clm file, default is short
 .TP
 .I -o clmfile
-Filename of CLM data file written. Default is out.clm.
+filename of CLM data file written. Default is out.clm
 .TP
-.I gridfile
-Filename of grid data file.
+.I gridfile    
+filename of grid data file
 .TP
-.I netcdffile
-Filename of NetCDF file(s) converted.
+.I netcdffile     
+filename of NetCDF file(s) converted
 .SH EXAMPLES
 .TP
-Create CLM data file and corresponding JSON metafile for temperature:
+Create data file for temperature:
 .B cdf2clm
--float -json -units celsius -var tas -o temp1901-2010.clm  grid.clm tmp*.nc
+-units celsius -var tas -o temp1901-2010.clm  grid.clm tmp*.nc
 .PP
 .SH EXIT STATUS
 .B cdf2clm
@@ -73,4 +57,4 @@ For authors and contributors see AUTHORS file
 (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
 
 .SH SEE ALSO
-cdf2grid(1), cdf2coord(1), cdf2bin(1), clm2cdf(1), bin2cdf(1), country2cdf(1), regridlpj(1), lpjml(1), txt2clm(1), cru2clm(1), arr2clm(1), clm(5)
+cdf2coord(1), cdf2bin(1), clm2cdf(1), bin2cdf(1), country2cdf(1), regridlpj(1), lpjml(1), txt2clm(1), cru2clm(1), clm(5)

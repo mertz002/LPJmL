@@ -33,17 +33,21 @@ struct celldata
     } bin;
     Coord_netcdf cdf;
   } soil;
-  Infile lakes;
-  Infile soilph;
-  Infile landfrac;
+  struct
+  {
+    Bool swap;
+    size_t offset;
+    FILE *file;
+  } runoff2ocean_map;
 };
 
 Celldata opencelldata(Config *config /**< LPJmL configuration */
                      )               /** \return pointer to cell data or NULL */
 {
   Celldata celldata;
-  Map *map;
-  int *soilmap;
+  Header header;
+  String headername;
+  int version;
   float lon,lat;
   celldata=new(struct celldata);
   if(celldata==NULL)
@@ -72,18 +76,13 @@ Celldata opencelldata(Config *config /**< LPJmL configuration */
     getcellsizecoord(&lon,&lat,celldata->soil.bin.file_coord);
     config->resolution.lon=lon;
     config->resolution.lat=lat;
-    if(config->nall>numcoord(celldata->soil.bin.file_coord))
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR249: Number of cells in grid file '%s'=%d less than %d.\n",
-                config->coord_filename.name,numcoord(celldata->soil.bin.file_coord),config->nall);
-      free(celldata);
-      return NULL;
-    }
+    if(isroot(*config) && config->nall>numcoord(celldata->soil.bin.file_coord))
+      fprintf(stderr,
+              "WARNING003: Number of gridcells in '%s' distinct from %d.\n",
+              config->coord_filename.name,numcoord(celldata->soil.bin.file_coord));
 
     /* Open soiltype file */
     celldata->soil.bin.file=fopensoilcode(&config->soil_filename,
-                                          &map,
                                           &celldata->soil.bin.swap,
                                           &celldata->soil.bin.offset,
                                           &celldata->soil.bin.type,config->nsoil,
@@ -94,36 +93,17 @@ Celldata opencelldata(Config *config /**< LPJmL configuration */
       free(celldata);
       return NULL;
     }
-    if(map!=NULL)
-    {
-      soilmap=getsoilmap(map,config);
-      if(soilmap==NULL)
-      {
-        if(isroot(*config))
-          fprintf(stderr,"ERROR250: Invalid soilmap in '%s'.\n",config->soil_filename.name);
-      }
-      else
-      {
-        if(isroot(*config) && config->soilmap!=NULL)
-           cmpsoilmap(soilmap,getmapsize(map),config);
-        free(config->soilmap);
-        config->soilmap=soilmap;
-        config->soilmap_size=getmapsize(map);
-      }
-      freemap(map);
-    }
   }
-  if(config->soilmap==NULL)
+  if(config->sim_id==LPJML_FMS)
   {
-    config->soilmap=defaultsoilmap(&config->soilmap_size,config);
-    if(config->soilmap==NULL)
-      return NULL;
-  }
-  if(config->with_lakes)
-  {
-    /* Open file for lake fraction */
-    if(openinputdata(&celldata->lakes,&config->lakes_filename,"lakes","1",LPJ_BYTE,0.01,config))
+    celldata->runoff2ocean_map.file=openinputfile(&header,&celldata->runoff2ocean_map.swap,
+                                                  &config->runoff2ocean_filename,
+                                                  headername,
+                                                  &version,&celldata->runoff2ocean_map.offset,config);
+    if(celldata->runoff2ocean_map.file==NULL)
     {
+      if(isroot(*config))
+        printfopenerr(config->runoff2ocean_filename.name);
       if(config->soil_filename.fmt==CDF)
         closecoord_netcdf(celldata->soil.cdf);
       else
@@ -135,42 +115,9 @@ Celldata opencelldata(Config *config /**< LPJmL configuration */
       return NULL;
     }
   }
-  if(config->with_nitrogen)
-  {
-    if(openinputdata(&celldata->soilph,&config->soilph_filename,"soilph",NULL,LPJ_SHORT,0.01,config))
-    {
-      if(config->soil_filename.fmt==CDF)
-        closecoord_netcdf(celldata->soil.cdf);
-      else
-      {
-        closecoord(celldata->soil.bin.file_coord);
-        fclose(celldata->soil.bin.file);
-      }
-      if(config->with_lakes)
-        closeinput(&celldata->lakes);
-      free(celldata);
-      return NULL;
-    }
-  }
-  if(config->landfrac_from_file)
-  {
-    if(openinputdata(&celldata->landfrac,&config->landfrac_filename,"landfrac","1",LPJ_SHORT,0.01,config))
-    {
-      if(config->soil_filename.fmt==CDF)
-        closecoord_netcdf(celldata->soil.cdf);
-      else
-      {
-        closecoord(celldata->soil.bin.file_coord);
-        fclose(celldata->soil.bin.file);
-      }
-      if(config->with_lakes)
-        closeinput(&celldata->lakes);
-      if(config->with_nitrogen)
-        closeinput(&celldata->soilph);
-      free(celldata);
-      return NULL;
-    }
-  }
+  else
+    celldata->runoff2ocean_map.file=NULL;
+
   return celldata;
 } /* of 'opencelldata' */
 
@@ -206,34 +153,34 @@ Bool seekcelldata(Celldata celldata, /**< pointer to celldata */
       return TRUE;
     }
   }
+  if(celldata->runoff2ocean_map.file!=NULL)
+    fseek(celldata->runoff2ocean_map.file,startgrid*sizeof(Intcoord)+celldata->runoff2ocean_map.offset,SEEK_CUR);
   return FALSE;
 } /* of 'seekcelldata' */
 
-Bool readcelldata(Celldata celldata,      /**< pointer to celldata */
-                  Cell *grid,             /**< pointer to grid cell */
-                  unsigned int *soilcode, /**< soil code */
-                  int cell,               /**< cell index */
-                  Config *config          /**< LPJmL configuration */
-                 )                        /** \return TRUE on error */
+Bool readcelldata(Celldata celldata, /**< pointer to celldata */
+                  Coord *coord,      /**< lon,lat coordinate */
+                  unsigned int *soilcode,     /**< soil code */
+                  Intcoord *runoff2ocean_coord, /**< coordinate for runoff */
+                  int cell,          /**< cell index */
+                  Config *config     /**< LPJmL configuration */
+                 )                   /** \return TRUE on error */
 {
-  char *name;
   if(celldata->soil_fmt==CDF)
   {
-    if(readcoord_netcdf(celldata->soil.cdf,&grid->coord,&config->resolution,soilcode))
+    if(readcoord_netcdf(celldata->soil.cdf,coord,&config->resolution,soilcode))
     {
-      fprintf(stderr,"ERROR190: Cannot read coordinate from '%s' for cell %d.\n",
+      fprintf(stderr,"ERROR190: Unexpected end of file in '%s' for cell %d.\n",
               config->soil_filename.name,cell+config->startgrid);
       return TRUE;
     }
   }
   else
   {
-    if(readcoord(celldata->soil.bin.file_coord,&grid->coord,&config->resolution))
+    if(readcoord(celldata->soil.bin.file_coord,coord,&config->resolution))
     {
-      name=getrealfilename(&config->coord_filename);
-      fprintf(stderr,"ERROR190: Cannot read coordinate from '%s' for cell %d.\n",
-              name,cell+config->startgrid);
-      free(name);
+      fprintf(stderr,"ERROR190: Unexpected end of file in '%s' for cell %d.\n",
+              config->coord_filename.name,cell+config->startgrid);
       return TRUE;
     }
     /* read soilcode from file */
@@ -241,68 +188,25 @@ Bool readcelldata(Celldata celldata,      /**< pointer to celldata */
     if(freadsoilcode(celldata->soil.bin.file,soilcode,
                      celldata->soil.bin.swap,celldata->soil.bin.type))
     {
-      name=getrealfilename(&config->soil_filename);
-      fprintf(stderr,"ERROR190: Cannot read soil code from '%s' for cell %d.\n",
-              name,cell+config->startgrid);
+      fprintf(stderr,"ERROR190: Unexpected end of file in '%s' for cell %d.\n",
+              config->soil_filename.name,cell+config->startgrid);
       config->ngridcell=cell;
-      free(name);
       return TRUE;
     }
   }
-  if(*soilcode>=config->soilmap_size)
+  if(celldata->runoff2ocean_map.file!=NULL)
   {
-    name=getrealfilename(&config->soil_filename);
-    fprintf(stderr,"ERROR250: Invalid soilcode %u of cell %d in '%s', must be in [0,%d].\n",
-            *soilcode,cell+config->startgrid,name,config->soilmap_size-1);
-    free(name);
-    return TRUE;
-  }
-  if(config->with_nitrogen)
-  {
-    if(readinputdata(&celldata->soilph,&grid->soilph,&grid->coord,cell+config->startgrid,&config->soilph_filename))
-      return TRUE;
-  }
-  if(config->landfrac_from_file)
-  {
-    if(readinputdata(&celldata->landfrac,&grid->landfrac,&grid->coord,cell+config->startgrid,&config->landfrac_filename))
-      return TRUE;
-    if(grid->landfrac==0)
+    fread(runoff2ocean_coord,sizeof(Intcoord),1,celldata->runoff2ocean_map.file);
+    if(celldata->runoff2ocean_map.swap)
     {
-      fprintf(stderr,"WARNING034: Land fraction of cell %d is zero, set to %g.\n",
-              cell+config->startgrid,param.minlandfrac);
-      grid->landfrac=param.minlandfrac;
+      runoff2ocean_coord->lon=swapshort(runoff2ocean_coord->lon);
+      runoff2ocean_coord->lat=swapshort(runoff2ocean_coord->lat);
     }
-    else if(grid->landfrac>1 || grid->landfrac<0)
-    {
-      fprintf(stderr,"ERROR257: Land fraction of cell %d=%g not in (0,1].\n",
-              cell+config->startgrid,grid->landfrac);
-      return TRUE;
-    }
-    grid->coord.area*=grid->landfrac;
   }
-  else
-    grid->landfrac=1;
-  if(config->with_lakes)
-  {
-    if(readinputdata(&celldata->lakes,&grid->lakefrac,&grid->coord,cell+config->startgrid,&config->lakes_filename))
-      return TRUE;
-    /* rescale to land fraction */
-    if(grid->landfrac==0)
-      grid->lakefrac=1;
-    else
-      grid->lakefrac/=grid->landfrac;
-    if(grid->lakefrac>1)
-      fprintf(stderr,"WARNING035: Lake fraction in cell %d=%g greater than one, set to one.\n",cell+config->startgrid,grid->lakefrac);
-    if(grid->lakefrac>1-epsilon)
-      grid->lakefrac=1;
-  }
-  else
-    grid->lakefrac=0;
   return FALSE;
 } /* of 'readcelldata' */
 
-void closecelldata(Celldata celldata,   /**< pointer to celldata */
-                   const Config *config /**< LPJmL configuration */
+void closecelldata(Celldata celldata /**< pointer to celldata */
                   )
 {
   if(celldata->soil_fmt==CDF)
@@ -312,11 +216,7 @@ void closecelldata(Celldata celldata,   /**< pointer to celldata */
     closecoord(celldata->soil.bin.file_coord);
     fclose(celldata->soil.bin.file);
   }
-  if(config->with_nitrogen)
-    closeinput(&celldata->soilph);
-  if(config->landfrac_from_file)
-    closeinput(&celldata->landfrac);
-  if(config->with_lakes)
-    closeinput(&celldata->lakes);
+  if(celldata->runoff2ocean_map.file!=NULL)
+    fclose(celldata->runoff2ocean_map.file);
   free(celldata);
 } /* of 'closecelldata' */

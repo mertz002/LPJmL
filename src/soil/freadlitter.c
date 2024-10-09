@@ -31,8 +31,9 @@ Bool freadlitter(FILE *file, /**< File pointer to binary file */
   litter->n=b;
   if(litter->n)
   {
-    litter->item=newvec(Litteritem,litter->n);
-    if(litter->item==NULL)
+    litter->ag=newvec(Litteritem,litter->n);
+    litter->bg=newvec(Real,litter->n);
+    if(litter->ag==NULL || litter->bg==NULL)
     {
       printallocerr("litter");
       return TRUE;
@@ -41,35 +42,34 @@ Bool freadlitter(FILE *file, /**< File pointer to binary file */
     {
       if(fread(&b,sizeof(b),1,file)!=1)
       {
-        free(litter->item);
+        free(litter->ag);
+        free(litter->bg);
         litter->n=0;
-        litter->item=NULL;
+        litter->ag=NULL;
+        litter->bg=NULL;
         return TRUE;
       }
-      litter->item[i].pft=pftpar+b;
+      litter->ag[i].pft=pftpar+b;
       if(b>=ntotpft)
       {
-        fprintf(stderr,"ERROR195: Invalid value %d for PFT index litter, must be in [0,%d].\n",
-                (int)b,ntotpft-1);
-        free(litter->item);
+        fprintf(stderr,"ERROR195: Invalid value %d for PFT index litter.\n",(int)b);
+        free(litter->ag);
+        free(litter->bg);
         litter->n=0;
-        litter->item=NULL;
+        litter->ag=NULL;
+        litter->bg=NULL;
         return TRUE;
       }
-      if(freadreal((Real *)&litter->item[i].agtop,sizeof(Trait)/sizeof(Real),
+      if(freadreal((Real *)&litter->ag[i].trait,sizeof(Trait)/sizeof(Real),
                    swap,file)!=sizeof(Trait)/sizeof(Real))
         return TRUE;
-      if(freadreal((Real *)&litter->item[i].agsub,sizeof(Trait)/sizeof(Real),
-                   swap,file)!=sizeof(Trait)/sizeof(Real))
-        return TRUE;
-      freadreal((Real *)(&litter->item[i].bg),sizeof(Stocks)/sizeof(Real),swap,file);
+      freadreal1(&litter->bg[i],swap,file);
     }
   }
   else
-    litter->item=NULL;
-  freadreal1(&litter->agtop_wcap,swap,file);
-  freadreal1(&litter->agtop_moist,swap,file);
-  freadreal1(&litter->agtop_cover,swap,file);
-  freadreal1(&litter->agtop_temp,swap,file);
+  {
+    litter->ag=NULL;
+    litter->bg=NULL;
+  }
   return FALSE;
 } /* of 'freadlitter' */

@@ -28,41 +28,34 @@ long long outputfilesize(const Config *config /**< LPJ configuration */
   iscdf=FALSE;
   for(i=0;i<config->n_out;i++)
   {
-    if(config->outputvars[i].id==GLOBALFLUX)
-      sum+=(config->lastyear-config->firstyear+config->nspinup+1)*200;
-    else
+    size=getsize(i,config);
+    size*=config->lastyear-config->outputyear+1;
+    if(config->outputvars[i].filename.fmt==CDF)
     {
-      size=getsize(i,config);
-      size*=config->lastyear-config->outputyear+1;
-      if(config->outnames[config->outputvars[i].id].timestep>1)
-        size/=config->outnames[config->outputvars[i].id].timestep;
-      if(config->outputvars[i].filename.fmt==CDF)
+      if(!iscdf)
       {
-        if(!iscdf)
-        {
-           if(config->soil_filename.fmt==CDF)
+         if(config->soil_filename.fmt==CDF)
+         {
+           coord=opencoord_netcdf(config->soil_filename.name,
+                                  config->soil_filename.var,isroot(*config));
+           if(coord!=NULL)
            {
-             coord=opencoord_netcdf(config->soil_filename.name,
-                                    config->soil_filename.var,isroot(*config));
-             if(coord!=NULL)
-             {
-               getextension_netcdf(&ext,coord);
-               closecoord_netcdf(coord);
-             }
-             else
-               ext.lon_res=ext.lat_res=0.5;
+             getextension_netcdf(&ext,coord);
+             closecoord_netcdf(coord);
            }
            else
-             getextension(&ext,config);
-           size_cdf=((long long)((ext.lon_max-ext.lon_min)/ext.lon_res)+1)*
-                    ((long long)((ext.lat_max-ext.lat_min)/ext.lat_res)+1);
-           iscdf=TRUE;
-        }
-        sum+=size_cdf*(size/config->total);
+             ext.lon_res=ext.lat_res=0.5;
+         }
+         else
+           getextension(&ext,config);
+         size_cdf=((long long)((ext.lon_max-ext.lon_min)/ext.lon_res)+1)*
+                  ((long long)((ext.lat_max-ext.lat_min)/ext.lat_res)+1);
+         iscdf=TRUE;
       }
-      else if(config->outputvars[i].filename.fmt!=SOCK)
-        sum+=size;
+      sum+=size_cdf*(size/config->total);
     }
+    else
+      sum+=size;
   }
   return sum;
 } /* of 'outputfilesize' */

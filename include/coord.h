@@ -21,7 +21,7 @@
 
 typedef struct
 {
-  short lon; /**< longitude in degrees * 100 */
+  short lon; /**< longitudein degrees * 100 */
   short lat; /**< latitude in degrees * 100 */
 } Intcoord;
 
@@ -44,15 +44,12 @@ extern void closecoord(Coordfile);
 extern Bool writecoord(FILE *,const Coord *);
 extern Bool writefloatcoord(FILE *,const Coord *);
 extern Real cellarea(const Coord *,const Coord *);
-extern int getfirstcoord(const Coordfile);
 extern Bool fscancoord(LPJfile *,Coord *,Verbosity);
 extern int numcoord(const Coordfile);
 extern void getcellsizecoord(float *,float *,const Coordfile);
 extern char *sprintcoord(String,const Coord *);
 extern void fprintcoord(FILE *,const Coord *);
-extern int findcoord(const Coord *,const Coord [],const Coord *,int);
-extern int findnextcoord(Real *,const Coord *,const Coord[],int);
-extern Type getcoordtype(const Coordfile);
+extern int findcoord(const Coord *,const Coord [],int);
 
 /* Definition of macros */
 

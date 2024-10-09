@@ -27,15 +27,15 @@ typedef struct
 
 extern int delpft(Pftlist *,int);
 extern void freepftlist(Pftlist *);
-extern Real gp_sum(const Pftlist *,Real,Real,Real,Real,Real *,Real [],Real *,const Config *);
+extern Real gp_sum(const Pftlist *,Real,Real,Real,Real,Real *,Real [],Real *);
 extern Real fpc_sum(Real [],int,const Pftlist *);
 extern int fwritepftlist(FILE *,const Pftlist *);
-extern void fprintpftlist(FILE *,const Pftlist *,int);
+extern void fprintpftlist(FILE *,const Pftlist *);
 extern Bool freadpftlist(FILE *,Stand *,Pftlist *,const Pftpar[],int,
-                         Bool,Bool);
-extern Stocks firepft(Stand *,Real,const Config *);
+                         Bool);
+extern Real firepft(Litter *,Pftlist *,Real);
 extern void newpftlist(Pftlist *);
-extern Pft *addpft(Stand *,const Pftpar *,int,int,const Config *);
+extern int addpft(Stand *,const Pftpar *,int,int);
 
 /* Definitions of macros */
 

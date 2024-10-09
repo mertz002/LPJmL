@@ -16,22 +16,20 @@
 
 #include "lpj.h"
 
-void fprintstand(FILE *file,           /**< Pointer to text file */
-                 const Stand *stand,   /**< Stand pointer */
-                 const Pftpar *pftpar, /**< PFT parameter array */
-                 int ntotpft,          /**< total number of PFTs */
-                 int with_nitrogen     /**< nitrogen cycle enabled */
+void fprintstand(FILE *file,        /**< Pointer to text file */
+                 const Stand *stand /**< Stand pointer */
                 )
 {
   int l;
   fprintf(file,"Standfrac:\t%g\n",stand->frac);
   fprintf(file,"Standtype:\t%s\n",stand->type->name);
+  fprintf(file,"Standage: \t%d (yr)\n",stand->age);
   /* print stand-specific data */
-  stand->type->fprint(file,stand,pftpar);
-  fprintsoil(file,&stand->soil,pftpar,ntotpft,with_nitrogen);
+  stand->type->fprint(file,stand);
+  fprintsoil(file,&stand->soil);
   fputs("Frac_g:\t\t",file);
   for(l=0;l<NSOILLAYER;l++)
     fprintf(file,"%.2f ",stand->frac_g[l]);
   fputc('\n',file);
-  fprintpftlist(file,&stand->pftlist,with_nitrogen);
+  fprintpftlist(file,&stand->pftlist);
 } /* of 'fprintstand' */

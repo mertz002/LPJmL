@@ -16,37 +16,14 @@
 
 #include "lpj.h"
 
-Bool getco2(const Climate *climate, /**< Pointer to climate data */
-            Real *pco2,             /**< atmospheric CO2 (ppm) */
-            int year,               /**< year (AD) */
-            const Config *config    /**< LPJmL configuration */
-           )                        /** \return TRUE on error */
-{
-  if(iscoupled(*config) && config->co2_filename.issocket && year>=config->start_coupling)
-  {
-    if(receive_real_scalar_coupler(climate->co2.id,pco2,1,year,config))
-      return TRUE;
-    if(*pco2<0)
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR246: Atmospheric CO2=%g less than zero in year %d.\n",*pco2,year);
-      return TRUE;
-    }
-  }
-  else
-  {
-    year-=climate->co2.firstyear;
-    if(year>=climate->co2.nyear)
-    {
-      if(isroot(*config))
-        fprintf(stderr,"ERROR015: Invalid year %d in getco2(), must be <%d.\n",
-                year+climate->co2.firstyear,climate->co2.firstyear+climate->co2.nyear);
 
-      return TRUE;
-    }
-    else if(year<0)
-      year=0;
-    *pco2=climate->co2.data[year];
-  }
-  return FALSE;
+Real getco2(const Climate *climate, /**< Pointer to climate data */
+            int year                /**< year (AD) */
+           )                        /** \return atmospheric CO2 (ppm) */
+{
+  year-=climate->co2.firstyear;
+  if(year>=climate->co2.nyear)
+    fail(INVALID_YEAR_ERR,FALSE,"Invalid yr=%d in getco2()",
+         year+climate->co2.firstyear);
+  return (year<0) ? param.co2_p : climate->co2.data[year];
 } /* of 'getco2' */

@@ -18,128 +18,118 @@
 #include "tree.h"
 #include "crop.h"
 
+#define LPJCHECK_VERSION "1.0.003"
 #define NTYPES 3 /* number of PFT types: grass, tree, crop */
-#define USAGE "Usage: %s [-h] [-v] [-q] [-nocheck] [-ofiles] [-param] [-vv]\n"\
-              "       [-couple hostname[:port]]\n"\
+#ifdef USE_JSON
+#define dflt_conf_filename "lpjml.js" /* Default LPJ configuration file */
+#else
+#define dflt_conf_filename "lpjml.conf" /* Default LPJ configuration file */
+#endif
+#ifdef USE_MPI
+#define USAGE "Usage: %s [-h] [-q] [-param] [-vv]\n"\
+              "       [-output {mpi2|gather|socket=hostname[:port]}]\n"\
               "       [-outpath dir] [-inpath dir] [-restartpath dir]\n"\
-              "       [-nopp] [-pp cmd] [[-Dmacro[=value]] [-Idir] ...] filename\n"
+              "       [[-Dmacro[=value]] [-Idir] ...] [filename]\n"
+#else
+#define USAGE "Usage: %s [-h] [-q] [-param] [-vv]\n"\
+              "       [-output {write|socket=hostname[:port]}]\n"\
+              "       [-outpath dir] [-inpath dir] [-restartpath dir]\n"\
+              "       [[-Dmacro[=value]] [-Idir] ...] [filename]\n"
+#endif
 
 int main(int argc,char **argv)
 {
-  /* Create array of functions, uses the typedef of Pfttype in config.h */
-  Pfttype scanfcn[NTYPES]=
-  {
-    {name_grass,fscanpft_grass},
-    {name_tree,fscanpft_tree},
-    {name_crop,fscanpft_crop}
-  };
+  /* Create array of functions, uses the typedef of (*Fscanpftparfcn) in pft.h */
+  Fscanpftparfcn scanfcn[NTYPES]={fscanpft_grass,fscanpft_tree,fscanpft_crop};
   Config config;         /* LPJ configuration */
-  int rc=0;              /* return code of program */
-  Bool isout,check;
+  int rc;                /* return code of program */
+  Bool isout;
   const char *progname;
   const char *title[4];
   String line;
   FILE *file;
   initconfig(&config);
-  isout=check=TRUE;
+  isout=TRUE;
   progname=strippath(argv[0]);
   if(argc>1)
   {
-    if(!strcmp(argv[1],"-q") || !strcmp(argv[1],"--quiet")) /* checks for '-q' flag */
+    if(!strcmp(argv[1],"-q")) /* checks for '-q' flag */
     {
       argc--; /* adjust command line options */
       argv++;
       isout=FALSE; /* no output */
     }
-    else if(!strcmp(argv[1],"-v") || !strcmp(argv[1],"--version"))
-    {
-      puts(LPJ_VERSION);
-      return EXIT_SUCCESS;
-    }
-    else if(!strcmp(argv[1],"-h") || !strcmp(argv[1],"--help"))
+    else if(!strcmp(argv[1],"-h"))
     {
       file=popen("more","w");
       if(file==NULL)
         file=stdout;
       fprintf(file,"     ");
-      rc=fprintf(file,"%s (" __DATE__ ") Help",
+      rc=fprintf(file,"%s Version " LPJCHECK_VERSION " (" __DATE__ ") Help",
               progname);
       fprintf(file,"\n     ");
       frepeatch(file,'=',rc);
-      fprintf(file,"\n\nChecks syntax of LPJmL version " LPJ_VERSION " configuration (*.cjson) files\n\n");
+      fprintf(file,"\n\nChecks syntax of LPJmL " LPJ_VERSION " configuration files\n\n");
       fprintf(file,USAGE,progname);
-      fprintf(file,"\nArguments:\n"
-             "-h,--help           print this help text\n"
-             "-v,--version        print LPJmL version\n"
-             "-q,--quiet          print error messsages only\n"
-             "-vv                 verbosely print the actual values during reading of the\n"
-             "                    configuration files\n"
-             "-pedantic           stops on warnings\n"
-             "-ofiles             list only all available output variables\n"
-             "-param              print LPJ parameter\n"
-             "-nopp               disable preprocessing\n"
-             "-pp cmd             set preprocessor program. Default is '" cpp_cmd "'\n"
-             "-couple host[:port] set host and port where coupled model is running\n"
-             "-outpath dir        directory appended to output filenames\n"
-             "-inpath dir         directory appended to input filenames\n"
-             "-restartpath dir    directory appended to restart filename\n"
-             "-Dmacro[=value]     define macro for preprocessor of configuration file\n"
-             "-Idir               directory to search for include files\n"
-             "filename            configuration filename\n\n"
-             "(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file\n");
+      fprintf(file,"Arguments:\n"
+             "-h               print this help text\n"
+             "-q               print error messsages only\n"
+             "-vv              verbosely print the actual values during reading of the\n"
+             "                 configuration files\n"
+             "-param           print LPJ parameter\n"
+             "-pp cmd          set preprocessor program. Default is 'cpp'\n"
+#ifdef USE_MPI
+             "-output method   output method. Must be mpi2, gather, socket.\n"
+             "                 Default is gather.\n"
+#else
+             "-output method   output method. Must be write or socket.\n"
+             "                 Default is write.\n"
+#endif
+             "-outpath dir     directory appended to output filenames\n"
+             "-inpath dir      directory appended to input filenames\n"
+             "-restartpath dir directory appended to restart filename\n"
+             "-Dmacro[=value]  define macro for preprocessor of configuration file\n"
+             "-Idir            directory to search for include files\n"
+             "filename         configuration filename. Default is '%s'\n\n"
+             "(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file\n",
+             dflt_conf_filename);
       if(file!=stdout)
         pclose(file);
       return EXIT_SUCCESS;
     }
   }
-  if(argc>1 && !strcmp(argv[1],"-nocheck"))
-  {
-    argc--; /* adjust command line options */
-    argv++;
-    check=FALSE; /* no checking */
-  }
   if(isout)
   {
     snprintf(line,78-10,
-             "%s (" __DATE__ ")",progname);
+             "%s Version " LPJCHECK_VERSION " (" __DATE__ ")",progname);
     title[0]=line;
-    title[1]="Checking configuration file for LPJmL version " LPJ_VERSION;
+    title[1]="Checking configuration file for LPJmL Version " LPJ_VERSION;
     title[2]="(C) Potsdam Institute for Climate Impact Research (PIK),";
     title[3]="see COPYRIGHT file";
     banner(title,4,78);
   }
 
-  if(readconfig(&config,scanfcn,NTYPES,NOUT,&argc,&argv,USAGE))
+  if(readconfig(&config,dflt_conf_filename,scanfcn,NTYPES,NOUT,&argc,&argv,USAGE))
   {
-    fail(READ_CONFIG_ERR,FALSE,"Cannot process configuration file");
+    fputs("Error occurred in processing configuration file.\n",stderr);
+    rc=EXIT_FAILURE;
   }
   else
   {
-    if(argc)
-      fputs("WARNING018: Arguments listed after configuration filename, will be ignored.\n",stderr);
-    if(config.ofiles)
-    {
-      fprintoutputvar(stdout,config.outnames,NOUT,config.npft[GRASS]+config.npft[TREE],config.npft[CROP],&config);
-      return EXIT_SUCCESS;
-    }
-
     if(isout)
     {
       /* print LPJ configuration on stdout if '-q' option is not set */
-      printconfig(config.npft[GRASS]+config.npft[TREE],
-                  config.npft[CROP],&config);
+      printconfig(&config,config.npft[GRASS]+config.npft[TREE],
+                  config.npft[CROP]);
     }
-    if(config.nall>0 && config.n_out)
+    if(config.n_out)
     {
       config.nall=config.total=config.ngridcell;
       printf("Estimated disk usage for output: ");
-      printintf((int)(outputfilesize(&config)/(1024*1024)));
+      printintf((int)(outputfilesize(&config)/(1024*1204)));
       printf(" MByte\n");
     }
-    if(check)
-      rc=(filesexist(config,isout)) ? EXIT_FAILURE : EXIT_SUCCESS;
-    else
-      rc=EXIT_SUCCESS;
+    rc=(filesexist(config,isout)) ? EXIT_FAILURE : EXIT_SUCCESS;
   }
   return rc;
 } /* of 'main' */

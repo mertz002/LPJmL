@@ -13,39 +13,24 @@
 /**************************************************************************************/
 
 #include "lpj.h"
-#include "crop.h"
 
-Bool initmanage(Manage *manage,      /**< pointer to management data */
-                int code,            /**< country code */
-                int npft,            /**< number of natural PFTs */
-                int ncft,            /**< number of crop PFts */
-                const Config *config /**< LPJmL configuration */
-               )                     /** \return TRUE on error */
+void initmanage(Manage *manage, /**< pointer to management data */
+                const Countrypar *countrypar, /**< pointer to country param */
+                const Regionpar *regionpar, /**< pointer to region param */
+                int npft, /**< number of natural PFTs */
+                int ncft, /**< number of crop PFts */
+                Bool isconstlai, /**< using const. LAImax? */
+                Real laimax     /**< maximum LAI */
+               )
 {
-  const Pftcroppar *croppar;
   int cft;
-  manage->par=config->countrypar+code;
+  manage->par=countrypar;    
+  manage->regpar=regionpar;
   if(manage->par->laimax_cft==NULL)
-  {
     manage->laimax=newvec2(Real,npft,npft+ncft-1);  /* allocate memory for country-specific laimax*/
-    if(manage->laimax==NULL)
-    {
-      printallocerr("laimax");
-      return TRUE;
-    }
-  }
   else
     manage->laimax=manage->par->laimax_cft-npft;  /* set pointer to country specific laimax */
-  manage->k_est = manage->par->k_est - npft + config->nagtree; /* set pointer to country specific k_est */
-
-  if(config->laimax_manage==LAIMAX_CONST)
+  if(isconstlai)
     for(cft=0;cft<ncft;cft++)
-      manage->laimax[npft+cft]=config->laimax;
-  else if(config->laimax_manage==LAIMAX_PAR)
-    for(cft=0;cft<ncft;cft++)
-    {
-      croppar=config->pftpar[npft+cft].data;
-      manage->laimax[npft+cft]=croppar->laimax;
-    }
-  return FALSE;
+      manage->laimax[npft+cft]=laimax;
 } /* of 'initmanage' */

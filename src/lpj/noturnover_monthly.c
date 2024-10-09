@@ -14,7 +14,7 @@
 
 #include "lpj.h"
 
-void noturnover_monthly(Litter * UNUSED(litter),Pft * UNUSED(pft),const Config * UNUSED(config))
+void noturnover_monthly(Litter * UNUSED(litter),Pft * UNUSED(pft))
 {
   /* do nothing */
 } /* of 'noturnover_monthly' */

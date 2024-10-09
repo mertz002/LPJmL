@@ -4,7 +4,7 @@
 /**                                                                                \n**/
 /**     C implementation of LPJmL                                                  \n**/
 /**                                                                                \n**/
-/**     Checks whether output filenames has been used more than once               \n**/
+/**     Checks whether outpiut filenames has been used more than once              \n**/
 /**     Only NetCDF files can share filenames                                      \n**/
 /**                                                                                \n**/
 /** (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file    \n**/
@@ -28,7 +28,7 @@ void outputnames(Outputfile *outfile, /**< output file array */
       outfile->files[config->outputvars[i].id].fp.cdf.state=ONEFILE;
       /* check whether filename has already been used */
       for(j=i-1;j>=0;j--)
-        if(config->outputvars[j].filename.fmt!=SOCK && !strcmp(config->outputvars[j].filename.name,config->outputvars[i].filename.name))
+        if(!strcmp(config->outputvars[j].filename.name,config->outputvars[i].filename.name))
         {
           if(config->outputvars[j].filename.fmt==CDF)
           {
@@ -51,10 +51,10 @@ void outputnames(Outputfile *outfile, /**< output file array */
           break;
         }
     }
-    else if(isroot(*config) && config->outputvars[i].filename.fmt!=SOCK)
+    else if(isroot(*config))
     {
       for(j=i-1;j>=0;j--)
-        if(config->outputvars[j].filename.fmt!=SOCK && !strcmp(config->outputvars[j].filename.name,config->outputvars[i].filename.name))
+        if(!strcmp(config->outputvars[j].filename.name,config->outputvars[i].filename.name))
           fprintf(stderr,"WARNING023: Filename is identical for %s and %s.\n",
                   config->outnames[config->outputvars[i].id].name,
                   config->outnames[config->outputvars[j].id].name);

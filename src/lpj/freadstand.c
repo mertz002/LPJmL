@@ -23,7 +23,6 @@ Stand *freadstand(FILE *file, /**< File pointer to binary file */
                   const Soilpar *soilpar, /**< soil parameter */
                   const Standtype standtype[], /**< array of stand types */
                   int nstand, /**< number of stand types */
-                  Bool separate_harvests,
                   Bool swap /**< Byte order has to be changed (TRUE/FALSE) */
                  ) /** \return allocated stand data or NULL */
 {
@@ -36,38 +35,38 @@ Stand *freadstand(FILE *file, /**< File pointer to binary file */
     return NULL;
   }
   stand->cell=cell;
-  if(fread(&landusetype,sizeof(landusetype),1,file)!=1)
+  if(freadpftlist(file,stand,&stand->pftlist,pftpar,ntotpft,swap))
   {
-    free(stand);
-    return NULL;
-  }
-  if(landusetype>=nstand)
-  {
-    fprintf(stderr,"ERROR196: Invalid value %d for stand type, must be in [0,%d].\n",
-            landusetype,nstand-1);
-    free(stand);
-    return NULL;
-  }
-  stand->type=standtype+landusetype;
-  if(freadpftlist(file,stand,&stand->pftlist,pftpar,ntotpft,separate_harvests,swap))
-  {
-    fprintf(stderr,"ERROR254: Cannot read PFT list.\n");
     free(stand);
     return NULL;
   }
   initstand(stand);
   if(freadsoil(file,&stand->soil,soilpar,pftpar,ntotpft,swap))
   {
-    fprintf(stderr,"ERROR254: Cannot read soil data.\n");
     free(stand);
     return NULL;
   }
   freadreal1(&stand->frac,swap,file);
-  stand->data=NULL;
+  if(fread(&landusetype,sizeof(landusetype),1,file)!=1)
+  {
+    freepftlist(&stand->pftlist);
+    freesoil(&stand->soil);
+    free(stand);
+    return NULL;
+  }
+  if(landusetype>=nstand)
+  {
+    fprintf(stderr,"ERROR196: Invalid value %d for stand type.\n",
+            landusetype);
+    freepftlist(&stand->pftlist);
+    freesoil(&stand->soil);
+    free(stand);
+    return NULL;
+  }
+  stand->type=standtype+landusetype;
   /* read stand-specific data */
   if(stand->type->fread(file,stand,swap))
   {
-    fprintf(stderr,"ERROR254: Cannot read stand-specific data.\n");
     freestand(stand);
     return NULL;
   }

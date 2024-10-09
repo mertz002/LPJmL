@@ -18,6 +18,8 @@
 
 #include "lpj.h"
 
+#ifdef USE_MPI
+
 void failonerror(const Config *config, /**< LPJmL configuration */
                  int rc,               /**< return code (0=no error) */
                  int errorcode,        /**< error code returned from program */
@@ -25,29 +27,26 @@ void failonerror(const Config *config, /**< LPJmL configuration */
                 )
 {
   int sum;
+  String s;
   /* sum up error codes of all tasks and broadcast result */
-#ifdef USE_MPI
   MPI_Allreduce(&rc,&sum,1,MPI_INT,MPI_SUM,config->comm);
-#else
-  sum=rc;
-#endif
   if(sum)
   {
     /* error occurred, end program */
-#ifdef USE_MPI
     MPI_Finalize(); /* finish MPI */
-#endif
     if(config->rank==0)
     {
       if(config->ntask==1)
-        fprintf(stderr,"ERROR%03d: %s, program terminated unsuccessfully.\n",errorcode,msg);
-      else if(sum==config->ntask)
-        fprintf(stderr,"ERROR%03d: %s on all tasks, program terminated unsuccessfully.\n",errorcode,msg);
+        fail(errorcode,FALSE,msg); /* write error message and exit*/
+      if(sum==config->ntask)
+        snprintf(s,STRING_LEN,"%s on all tasks",msg);
       else
-        fprintf(stderr,"ERROR%03d: %s on %d tasks, program terminated unsuccessfully.\n",errorcode,msg,sum);
+        snprintf(s,STRING_LEN,"%s on %d tasks",msg,sum);
+      fail(errorcode,FALSE,s); /* write error message and exit*/
     }
-    if(config->coupled_model!=NULL)
-      close_coupler(errorcode,config);
-    exit(errorcode);     /* exit */
+    else
+      exit(errorcode);     /* exit only */
   }
 } /* of 'failonerror' */
+
+#endif

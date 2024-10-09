@@ -30,7 +30,6 @@
 #define c_albedo_wet_soil  0.15  /* see above */
 #define decay_alb_moist  12.7    /* Describes how fast the moisture dependence is */
 
-#if 0
 static Real albedo_stand(const Stand *stand)
 {
   int p;
@@ -50,7 +49,7 @@ static Real albedo_stand(const Stand *stand)
     return c_albsnow;
   }
 
-  VolWatercontent = stand->soil.w[0]*stand->soil.whc[0];
+  VolWatercontent = stand->soil.w[0]*stand->soil.par->whc[0];
   moisture = c_albedo_wet_soil + c_albedo_bare_soil*exp(-decay_alb_moist*VolWatercontent);/*gives the moisture dependence of the bare soil*/
 
   HS = c_watertosnow * (stand->soil.snowpack/1000.0); /* mm -> m */
@@ -60,15 +59,14 @@ static Real albedo_stand(const Stand *stand)
 
   foreachpft(pft,p,&stand->pftlist)
   {
-    albedo_pft(pft, stand->soil.snowheight, stand->soil.snowfraction);
-    albstot += pft->albedo;
+    albstot += pft->par->albedo(pft,HS,frsg); /* call PFT-specific albedo function */
     fbare += pft->fpc;
   } /* pft loop */
   fbare = max((1-fbare),0.0);
 
   test = albstot + fbare * (frsg * c_albsnow + (1-frsg) * (c_albsoil+moisture));
 
-#ifdef SAFE
+#ifndef NDEBUG
   if (test > 1 || test < 0 || isnan(test))
   {
     printf("WARNING albedo out of bounds: %g fbare=%g albstot=%g\n", test, fbare, albstot);
@@ -82,7 +80,6 @@ static Real albedo_stand(const Stand *stand)
   return  test;
 
 } /* end of albedo_stand() */
-#endif /* 0 */
 
 /** albedo of lakes is computed following
  * Albedo models for snow and ice on a freshwater lake
@@ -95,7 +92,7 @@ Real albedo(Cell *cell, /**< Pointer to cell */
             Real prec   /**< precipitattion (mm) */
            )            /** \return albedo (0..1) */
 {
-  Stand *stand;
+  const Stand *stand;
   int s;
   Real a;
 

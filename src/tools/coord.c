@@ -15,6 +15,7 @@
 /**************************************************************************************/
 
 #include "lpj.h"
+#include <sys/stat.h>
 
 struct coordfile
 {
@@ -39,9 +40,9 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
 {
   Coordfile coordfile;
   Header header;
+  struct stat filestat;
   coordfile=new(struct coordfile);
   int version;
-  size_t filesize;
   if(coordfile==NULL)
   {
     printallocerr("coord");
@@ -53,14 +54,10 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
     header.scalar=0.01;
     header.datatype=LPJ_SHORT;
     header.nbands=2;
-    header.nstep=1;
-    header.timestep=1;
     header.firstcell=0;
     header.ncell=0;
-    header.nyear=1;
-    header.order=CELLYEAR;
     header.cellsize_lon=header.cellsize_lat=0.5;
-    coordfile->file=openmetafile(&header,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,&coordfile->swap,&coordfile->offset,filename->name,isout);
+    coordfile->file=openmetafile(&header,&coordfile->swap,&coordfile->offset,filename->name,isout);
     if(coordfile->file==NULL)
     {
       free(coordfile);
@@ -69,8 +66,7 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
     if(header.ncell<=0)
     {
       if(isout)
-        fprintf(stderr,"ERROR221: Invalid number %d of cells in JSON metafile '%s', must be greater than zero.\n",
-                header.ncell,filename->name);
+        fprintf(stderr,"ERROR221: Invalid number of cells in description file '%s'.\n",filename->name);
       free(coordfile);
       return NULL;
     }
@@ -79,35 +75,15 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
     coordfile->cellsize.lon=header.cellsize_lon;
     coordfile->cellsize.lat=header.cellsize_lat;
     coordfile->datatype=header.datatype;
-    coordfile->scalar=header.scalar;
     if(header.nbands!=2)
     {
       if(isout)
-        fprintf(stderr,"ERROR218: Number of bands=%d in JSON metafile '%s' is not 2.\n",
+        fprintf(stderr,"ERROR218: Number of bands=%d in description file '%s' is not 2.\n",
                 header.nbands,filename->name);
       fclose(coordfile->file);
       free(coordfile);
       return NULL;
     }
-    if(header.nstep!=1)
-    {
-      if(isout)
-        fprintf(stderr,"ERROR218: Number of steps=%d in JSON metafile '%s' is not 1.\n",
-                header.nstep,filename->name);
-      fclose(coordfile->file);
-      free(coordfile);
-      return NULL;
-    }
-    if(header.timestep!=1)
-    {
-      if(isout)
-        fprintf(stderr,"ERROR218: Time step=%d in JSON metafile '%s' is not 1.\n",
-                header.timestep,filename->name);
-      fclose(coordfile->file);
-      free(coordfile);
-      return NULL;
-    }
-    fseek(coordfile->file,coordfile->offset,SEEK_SET);
     return coordfile;
   }
   coordfile->file=fopen(filename->name,"rb");
@@ -120,7 +96,8 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
   }
   if(filename->fmt==RAW)
   {
-    coordfile->n=getfilesizep(coordfile->file)/sizeof(Intcoord);
+    fstat(fileno(coordfile->file),&filestat);
+    coordfile->n=filestat.st_size/sizeof(Intcoord);
     coordfile->first=0;
     coordfile->swap=FALSE;
     coordfile->scalar=0.01;
@@ -135,19 +112,10 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
     else
       version=2;
     if(freadheader(coordfile->file,&header,&coordfile->swap,
-                   LPJGRID_HEADER,&version,isout))
+                   LPJGRID_HEADER,&version))
     {
       if(isout)
         fprintf(stderr,"ERROR154: Invalid header in '%s'.\n",filename->name);
-      fclose(coordfile->file);
-      free(coordfile);
-      return NULL;
-    }
-    if(version>CLM_MAX_VERSION)
-    {
-      if(isout)
-        fprintf(stderr,"ERROR154: Unsupported version %d in '%s', must be less than %d.\n",
-                version,filename->name,CLM_MAX_VERSION+1);
       fclose(coordfile->file);
       free(coordfile);
       return NULL;
@@ -168,21 +136,6 @@ Coordfile opencoord(const Filename *filename, /**< filename of coord file */
       free(coordfile);
       return NULL;
     }
-    if(header.nstep!=1)
-    {
-      if(isout)
-        fprintf(stderr,"ERROR218: Number of steps=%d in grid file '%s' is not 1.\n",
-                header.nstep,filename->name);
-      fclose(coordfile->file);
-      free(coordfile);
-      return NULL;
-    }
-    if(isout)
-    {
-      filesize=getfilesizep(coordfile->file)-coordfile->offset;
-      if(filesize!=typesizes[header.datatype]*header.nyear*header.nbands*header.ncell)
-        fprintf(stderr,"WARNING032: File size of '%s' does not match nyear*ncell*nbands.\n",filename->name);
-    }
   }
   coordfile->fmt=filename->fmt;
   return coordfile;
@@ -201,12 +154,6 @@ int numcoord(const Coordfile coordfile /**< open coord file */
 {
   return coordfile->n;
 } /* of 'numcoord' */
-
-int getfirstcoord(const Coordfile coordfile /**< open coord file */
-                 )                          /** \return first index of coords in file */
-{
-  return coordfile->first;
-} /* of 'getfirstcoord' */
 
 void closecoord(Coordfile coordfile /**< coord file to be closed */
                )
@@ -292,17 +239,6 @@ Bool readcoord(Coordfile coordfile, /**< open coord file */
     default:
       return TRUE;
   } /* of switch */
-  /* check correct range of coordinate */
-  if(coord->lat<-90 || coord->lat>90)
-  {
-    fprintf(stderr,"ERROR261: Invalid value %g for latitude, must be in [-90,90].\n",coord->lat);
-    return TRUE;
-  }
-  if(coord->lon<-180 || coord->lon>180)
-  {
-    fprintf(stderr,"ERROR261: Invalid value %g for longitude, must be in [-180,180].\n",coord->lon);
-    return TRUE;
-  }
   /* calculate cell area */
   coord->area=cellarea(coord,resol);
   return FALSE;
@@ -313,8 +249,8 @@ Bool writecoord(FILE *file,        /**< pointer to binary file */
                )                   /** \return FALSE for successful write */
 {
   Intcoord icoord;
-  icoord.lat=(short)round(coord->lat*100);
-  icoord.lon=(short)round(coord->lon*100);
+  icoord.lat=(short)(coord->lat*100);
+  icoord.lon=(short)(coord->lon*100);
   return fwrite(&icoord,sizeof(icoord),1,file)!=1;
 } /* of 'writecoord' */
 
@@ -348,12 +284,6 @@ Real cellarea(const Coord *coord, /**< cell coordinate */
   return (111194.9*resol->lat)*(111194.9*resol->lon)*cos(deg2rad(coord->lat));
 } /* of 'cellarea' */
 
-Type getcoordtype(const Coordfile coordfile /**< open coord file */
-                 )                          /** \return datatype of coordinates */
-{
-  return  coordfile->datatype;
-} /* of 'getcoordtype' */
-
 Bool fscancoord(LPJfile *file, /**< pointer to text file */
                 Coord *coord,  /**< cell coordinate read */
                 Verbosity verb /**< verbosity level (NO_ERR,ERR,VERB) */
@@ -368,13 +298,12 @@ Bool fscancoord(LPJfile *file, /**< pointer to text file */
 
 int findcoord(const Coord *c,      /**< coordinate */
               const Coord array[], /**< array of coordinates */
-              const Coord *res,    /**< resolution (deg) */
               int size             /**< size of array */
              )         /** \return index of coordinate found or NOT_FOUND */
 {
   int i;
   for(i=0;i<size;i++)
-    if(fabs(array[i].lon-c->lon)<res->lon*0.5 && fabs(array[i].lat-c->lat)<res->lat*0.5)
+    if(fabs(array[i].lon-c->lon)<epsilon && fabs(array[i].lat-c->lat)<epsilon)
       return i;
   return NOT_FOUND;
 } /* of 'findcoord' */
@@ -409,29 +338,3 @@ void fprintcoord(FILE *file,        /**< pointer to text file */
   else
     fprintf(file," %.6gE",coord->lon);
 } /* of 'fprintcoord' */
-
-int findnextcoord(Real *dist_min,     /**< [out] minimum distance */
-                  const Coord *item,  /**< [in] coordinate to search for */
-                  const Coord grid[], /**< [in] array of coordinates */
-                  int size            /**< [in] size of array */
-                 )                    /** \return index in array for nearest cell */
-{
-  int i,i_min;
-  Real dist,dist_lon;
-  *dist_min=HUGE_VAL;
-  i_min=0;
-  for(i=0;i<size;i++)
-  {
-    dist_lon=fabs(item->lon-grid[i].lon);
-    if(360-dist_lon<dist_lon)
-      dist_lon=360-dist_lon;
-    dist=(item->lat-grid[i].lat)*(item->lat-grid[i].lat)+dist_lon*dist_lon;
-    if(*dist_min>dist)
-    {
-      *dist_min=dist;
-      i_min=i;
-    }
-  }
-  *dist_min=sqrt(*dist_min);
-  return i_min;
-} /* of 'findnextcoord' */

@@ -16,14 +16,14 @@
 
 #include "lpj.h"
 
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
 
 Bool getproductpools(Productinit *productinit,
                      Product productpools[],
                      int ncell
                     )
 {
-  float *vec;
+  Real *vec;
   int cell;
 
   if(fseek(productinit->file,productinit->offset,SEEK_SET))
@@ -32,13 +32,13 @@ Bool getproductpools(Productinit *productinit,
             productinit->offset);
     return TRUE;
   } 
-  vec=newvec(float,ncell*2);
+  vec=newvec(Real,ncell*2);
   if(vec==NULL)
   {
     printallocerr("vec");
     return TRUE;
   }
-  if(readfloatvec(productinit->file,vec,productinit->scalar,ncell*2,productinit->swap,productinit->datatype))
+  if(readrealvec(productinit->file,vec,0,productinit->scalar,ncell*2,productinit->swap,productinit->datatype))
   {
     fprintf(stderr,"ERROR151: Cannot read initial product pools.\n");
     free(vec);
@@ -46,8 +46,8 @@ Bool getproductpools(Productinit *productinit,
   } 
   for(cell=0;cell<ncell;cell++)
   {
-    productpools[cell].fast=(Real)vec[2*cell];
-    productpools[cell].slow=(Real)vec[2*cell+1];
+    productpools[cell].fast=vec[2*cell];
+    productpools[cell].slow=vec[2*cell+1];
   }
   free(vec);
   return FALSE ;

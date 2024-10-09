@@ -15,7 +15,7 @@
 
 #include "lpj.h"
 
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
 
 Bool receive_image_climate(Climate *climate,    /**< Climate data */
                            const Cell grid[],   /**< LPJ grid */
@@ -24,7 +24,6 @@ Bool receive_image_climate(Climate *climate,    /**< Climate data */
                           )                     /** \return TRUE on error */
 {
   int i;
-
 #ifdef USE_MPI
   int *counts,*offsets;
   int n;

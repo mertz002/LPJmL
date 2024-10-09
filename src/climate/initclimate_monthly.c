@@ -17,13 +17,12 @@
 void initclimate_monthly(const Climate *climate, /**< Pointer to climate data */
                          Climbuf *climbuf,       /**< pointer to climate buffer */
                          int cell,               /**< cell index */
-                         int month,              /**< month (0..11) */
-                         Seed seed               /**< seed for random generator */
+                         int month               /**< month (0..11) */
                         )                        /** \return void */
 {
   if(!isdaily(climate->file_prec) && israndomprec(climate))
     prdaily(climbuf->dval_prec,ndaymonth[month],
             (getcellprec(climate,cell))[month],
-            (getcellwet(climate,cell))[month],seed);
+            (getcellwet(climate,cell))[month]);
   climbuf->mtemp=climbuf->mprec=0;
 } /* of 'initclimate_monthly' */

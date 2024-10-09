@@ -13,49 +13,94 @@
 /**************************************************************************************/
 
 #include "lpj.h"
-#include "agriculture.h"
 #include "crop.h"
+#include "agriculture.h"
 
-Stocks sowing_prescribe(Cell *cell,          /**< pointer to cell */
-                        int day,             /**< day of year (1..365) */
-                        int npft,            /**< number of natural PFTs */
-                        int ncft,            /**< number of crop PFTs */
-                        int year,            /**< simulation year (AD) */
-                        const Config *config /**< LPJmL configuration */
-                       )                     /** \return establishment flux (gC/m2, gN/m2) */
+Real sowing_prescribe(Cell *cell,          /**< pointer to cell */
+                      int day,             /**< day of year (1..365) */
+                      int npft,            /**< number of natural PFTs */
+                      int ncft,            /**< number of crop PFTs */
+                      int year,            /**< simulation year (AD) */
+                      const Config *config /**< LPJmL configuration */
+                     )                     /** \return establishment flux (gC/m2) */
 {
-  Stocks flux_estab={0,0};
-  Bool alloc_today[2]={FALSE,FALSE};
+  Real flux_estab=0;
+  Stand *setasidestand;
+  Bool alloc_today_rf=FALSE, alloc_today_ir=FALSE,istimber;
   const Pftcroppar *croppar;
   int cft,s,s2;
   int earliest_sdate;
-  int cft_other;
-  Bool wtype;
+  Bool wtype=FALSE;
 
+#ifdef IMAGE
+  istimber=(config->start_imagecoupling!=INT_MAX);
+#else
+  istimber=FALSE;
+#endif
   s=findlandusetype(cell->standlist,SETASIDE_RF);
   s2=findlandusetype(cell->standlist,SETASIDE_IR);
-  if (s!=NOT_FOUND||s2!=NOT_FOUND)
+  if(s!=NOT_FOUND || s2!=NOT_FOUND)
   {
-    if(config->others_to_crop)
-       cft_other=(fabs(cell->coord.lat)>30) ? config->cft_temp : config->cft_tropic;
-    else
-       cft_other=-1;
-    for (cft=0; cft<ncft; cft++)
+
+    for(cft=0;cft<ncft;cft++)
     {
       croppar=config->pftpar[npft+cft].data;
-      earliest_sdate=(cell->coord.lat>=0)?croppar->initdate.sdatenh:croppar->initdate.sdatesh;
-      wtype = (croppar->calcmethod_sdate==TEMP_WTYP_CALC_SDATE && day>earliest_sdate);
-      if(day==cell->ml.sdate_fixed[cft])
+      earliest_sdate=(cell->coord.lat>=0) ? croppar->initdate.sdatenh : croppar->initdate.sdatesh;
+
+      /*rainfed crops*/
+      s=findlandusetype(cell->standlist,SETASIDE_RF);
+      if(s!=NOT_FOUND)
       {
-        sowingcft(&flux_estab,alloc_today,cell,FALSE,wtype,TRUE,npft,ncft,cft,year,day,FALSE,config);
-        if(cft==cft_other)
-          sowingcft(&flux_estab,alloc_today,cell,FALSE,wtype,TRUE,npft,ncft,cft,year,day,TRUE,config);
+        setasidestand=getstand(cell->standlist,s);
+
+        if(day==cell->ml.sdate_fixed[cft])
+        {
+          wtype = (croppar->calcmethod_sdate==TEMP_WTYP_CALC_SDATE && day>earliest_sdate) ? TRUE : FALSE;
+          if(check_lu(cell->standlist,cell->ml.landfrac[0].crop[cft],npft+cft,FALSE))
+          {
+            if(!alloc_today_rf)
+            {
+              allocation_today(setasidestand, config->ntypes);
+              alloc_today_rf=TRUE;
+            }
+            flux_estab+=cultivate(cell,config->pftpar+npft+cft,
+                                  cell->ml.cropdates[cft].vern_date20,
+                                  cell->ml.landfrac[0].crop[cft],FALSE,day,wtype,
+                                  setasidestand,istimber,config->irrig_scenario,
+                                  npft+ncft,cft,year);
+#ifndef DOUBLE_HARVEST
+            cell->output.sdate[cft]=day;
+#endif
+          }
+        }/*of rainfed CFTs*/
       }
-      if(day==cell->ml.sdate_fixed[cft+ncft])
+      s=findlandusetype(cell->standlist,SETASIDE_IR);
+      if(s!=NOT_FOUND)
       {
-        sowingcft(&flux_estab,alloc_today+1,cell,TRUE,wtype,TRUE,npft,ncft,cft,year,day,FALSE,config);
-        if(cft==cft_other)
-          sowingcft(&flux_estab,alloc_today+1,cell,TRUE,wtype,TRUE,npft,ncft,cft,year,day,TRUE,config);
+        setasidestand=getstand(cell->standlist,s);
+
+
+        /*irrigated crops*/
+        if(day==cell->ml.sdate_fixed[cft+ncft])
+        {
+          wtype = (croppar->calcmethod_sdate==TEMP_WTYP_CALC_SDATE && day>earliest_sdate) ? TRUE : FALSE;
+          if(check_lu(cell->standlist,cell->ml.landfrac[1].crop[cft],npft+cft,TRUE))
+          {
+            if(!alloc_today_ir)
+            {
+              allocation_today(setasidestand, config->ntypes);
+              alloc_today_ir=TRUE;
+            }
+            flux_estab+=cultivate(cell,config->pftpar+npft+cft,
+                                  cell->ml.cropdates[cft].vern_date20,
+                                  cell->ml.landfrac[1].crop[cft],TRUE,day,wtype,
+                                  setasidestand,istimber,config->irrig_scenario,
+                                  npft+ncft,cft,year);
+#ifndef DOUBLE_HARVEST
+            cell->output.sdate[cft+ncft]=day;
+#endif
+          }
+        }/*of irrigated CFTs*/
       }
     }
   }

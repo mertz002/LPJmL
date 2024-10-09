@@ -17,7 +17,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef USE_JSON
 #include <json-c/json.h>
+#endif
 #include "types.h"
 
 Bool fscanint(LPJfile *file,    /**< pointer to LPJ file */
@@ -27,12 +29,14 @@ Bool fscanint(LPJfile *file,    /**< pointer to LPJ file */
               Verbosity verb    /**< verbosity level (NO_ERR,ERR,VERB) */
              )                  /** \return TRUE on error */
 {
+  String line,token;
+  char *ptr;
+  Bool rc;
+#ifdef USE_JSON
   struct json_object *item;
-  if(name==NULL)
-    item=file;
-  else
+  if(file->isjson)
   {
-    if(!json_object_object_get_ex(file,name,&item))
+    if(!json_object_object_get_ex(file->file.obj,name,&item))
     {
       if(with_default)
       {
@@ -47,29 +51,19 @@ Bool fscanint(LPJfile *file,    /**< pointer to LPJ file */
         return TRUE;
       }
     }
+    if(json_object_get_type(item)!=json_type_int)
+    {
+      if(verb)
+        fprintf(stderr,"ERROR226: Name '%s' not of type int.\n",name);
+      return TRUE;
+    }
+    *value=json_object_get_int(item);
+    if (verb >= VERB)
+      printf("\"%s\" : %d\n", name, *value);
+    return FALSE;
   }
-  if(json_object_get_type(item)!=json_type_int)
-  {
-    if(verb)
-      fprintf(stderr,"ERROR226: Name '%s' not of type int.\n",name);
-    return TRUE;
-  }
-  *value=json_object_get_int(item);
-  if (verb >= VERB)
-    printf("\"%s\" : %d\n", name, *value);
-  return FALSE;
-} /* of 'fscanint' */
-
-Bool ffscanint(FILE *file,       /**< pointer to text file */
-               int *value,       /**< integer to be read from file */
-               const char *name, /**< variable name */
-               Verbosity verb    /**< verbosity level (NO_ERR,ERR,VERB) */
-              )                  /** \return TRUE on error */
-{
-  String line,token;
-  char *ptr;
-  Bool rc;
-  rc=fscantoken(file,token);
+#endif
+  rc=fscantoken(file->file.file,token);
   if(!rc)
   {
     *value=(int)strtol(token,&ptr,10);
@@ -82,13 +76,11 @@ Bool ffscanint(FILE *file,       /**< pointer to text file */
     if(strlen(token)>0)
     {
       fputs("read:\n",stderr);
-      if(fgets(line,STRING_LEN,file)!=NULL)
+      if(fgets(line,STRING_LEN,file->file.file)!=NULL)
         line[strlen(line)-1]='\0';
       else
         line[0]='\0';
-      fputs("          '",stderr);
-      fputprintable(stderr,token);
-      fprintf(stderr,"%s'\n           ",line);
+      fprintf(stderr,"          '%s%s'\n           ",token,line);
       frepeatch(stderr,'^',strlen(token));
       fputc('\n',stderr);
     }
@@ -98,4 +90,4 @@ Bool ffscanint(FILE *file,       /**< pointer to text file */
   else if (verb >= VERB)
     printf("\"%s\" : %d\n", name, *value);
   return rc;
-} /* of 'ffscanint' */
+} /* of 'fscanint' */

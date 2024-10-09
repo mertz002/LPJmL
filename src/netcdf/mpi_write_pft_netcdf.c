@@ -32,10 +32,9 @@ Bool mpi_write_pft_netcdf(const Netcdf *cdf, /* pointer to NetCDF */
                          )                   /* returns TRUE on error */
 {
   Bool rc;
-  MPI_Aint lb;
   MPI_Aint extent;
   void *vec=NULL;
-  MPI_Type_get_extent(type,&lb,&extent);
+  MPI_Type_extent(type,&extent);
   if(rank==0)
   {
     vec=malloc(size*extent); /* allocate receive buffer */

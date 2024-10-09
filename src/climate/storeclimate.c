@@ -33,8 +33,6 @@ Bool storeclimate(Climatedata *store,  /**< pointer to climate data to be stored
   checkptr(store->temp);
   store->prec=newvec(Real,climate->file_prec.n*nyear);
   checkptr(store->prec);
-  store->no3deposition=NULL;
-  store->nh4deposition=NULL;
   if(climate->data.tmax!=NULL)
   {
     store->tmax=newvec(Real,climate->file_tmax.n*nyear);
@@ -49,13 +47,6 @@ Bool storeclimate(Climatedata *store,  /**< pointer to climate data to be stored
   }
   else
     store->humid=NULL;
-  if(climate->data.tmin!=NULL)
-  {
-    store->tmin=newvec(Real,climate->file_tmin.n*nyear);
-    checkptr(store->tmin);
-  }
-  else
-    store->tmin=NULL;
   if(climate->data.sun!=NULL)
   {
     store->sun=newvec(Real,climate->file_cloud.n*nyear);
@@ -142,12 +133,6 @@ Bool storeclimate(Climatedata *store,  /**< pointer to climate data to be stored
       for(j=0;j<climate->file_humid.n;j++)
         store->humid[count++]=climate->data.humid[j];
     }
-    if(store->tmin!=NULL)
-    {
-      count=climate->file_tmin.n*(year-firstyear);
-      for(j=0;j<climate->file_tmin.n;j++)
-        store->tmin[count++]=climate->data.tmin[j];
-    }
     if(store->lwnet!=NULL)
     {
       count=climate->file_lwnet.n*(year-firstyear);
@@ -213,12 +198,6 @@ void restoreclimate(Climate *climate,         /**< pointer to climate data */
     for(i=0;i<climate->file_humid.n;i++)
       climate->data.humid[i]=store->humid[index++];
   }
-  if(store->tmin!=NULL)
-  {
-    index=year*climate->file_tmin.n;
-    for(i=0;i<climate->file_tmin.n;i++)
-      climate->data.tmin[i]=store->tmin[index++];
-  }
   if(store->sun!=NULL)
   {
     index=year*climate->file_cloud.n;
@@ -274,8 +253,6 @@ void moveclimate(Climate *climate,  /**< Pointer to climate data */
     climate->data.tmax=store->tmax+climate->file_tmax.n*year;
   if(climate->data.humid!=NULL)
     climate->data.humid=store->humid+climate->file_humid.n*year;
-  if(climate->data.tmin!=NULL)
-    climate->data.tmin=store->tmin+climate->file_tmin.n*year;
   if(climate->data.sun!=NULL)
     climate->data.sun=store->sun+climate->file_cloud.n*year;
   if(climate->data.lwnet!=NULL)

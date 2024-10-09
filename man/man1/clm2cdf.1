@@ -1,25 +1,16 @@
-.TH clm2cdf 1  "USER COMMANDS"
+.TH clm2cdf 1  "March 7, 2018" "version 1.0.001" "USER COMMANDS"
 .SH NAME
 clm2cdf \- convert CLM files into NetCDF files
 .SH SYNOPSIS
 .B clm2cdf
-[\-h] [\-v] [\-global] [\-scale factor] [\-cellsize size] [\-byte] [\-int] [\-float] [[\-attr name=value] ...] [\-intnetcdf] [\-metafile] [\-map name] [\-raw] [\-nbands n] [\-landuse] [\-notime] [\-compress level] [\-units u] [\-descr d] [\-missing_value val]
-.I [varname gridfile] clmfile netcdffile
+[\-global] [\-scale factor] [\-cellsize size] [\-int] [\-float] [\-landuse] [\-notime] [\-compress level] [\-units u] [\-descr d]
+.I varname gridfile clmfile netcdffile
 .SH DESCRIPTION
 Program converts CLM input data into NetCDF input data. 
 .SH OPTIONS
 .TP
-\-h,\--help
-print help text
-.TP
-\-v,\--version
-print LPJmL version
-.TP
 \-global
 use global grid for NetCDF file
-.TP
-\-longheader
-force version of CLM file to 2
 .TP
 \-scale factor
 scaling factor for CLM version 1 files. Default is one
@@ -27,32 +18,11 @@ scaling factor for CLM version 1 files. Default is one
 \-cellsize size
 set cell size of grid file to size
 .TP
-\-byte
-set data type in CLM file to byte, default is short or read from CLM header
-.TP
 \-int
-set data type in CLM file to int, default is short or read from CLM header
+set data type in CLM file to int, default is short 
 .TP
 \-float
-set data type in CLM file to float, default is short or read from CLM header
-.TP
-\-attr name=value
-set global attribute name in output files to value
-.TP
-\-intnetcdf
-set data type in NetCDF file to int, default is float for short and float datatypes in CLM files
-.TP
-\-metafile
-set the input format to JSON metafile instead of CLM.
-.TP
-\-map name
-name of map in JSON metafile, default is "map"
-.TP
-\-raw
-set the input format to raw instead of CLM
-.TP
-\-nbands n
-set the number of bands to n. This is only active if raw format is set. Default is one
+set data type in CLM file to float, default is short 
 .TP
 -landuse
 convert land-use input data
@@ -69,14 +39,11 @@ set units in NetCDF file
 \-descr d
 set long name in NetCDF file
 .TP
-\-missing_value val
-set missing value in NetCDF file to val
-.TP
 varname
-variable name in NetCDF file. If not specified variable name is read from metafile
+variable name in NetCDF file
 .TP
 .I gridfile    
-filename of grid data file. If not specified grid name is read from metafile
+filename of grid data file
 .TP
 .I clmfile
 filename of CLM data file
@@ -88,10 +55,6 @@ filename of NetCDF file created
 Create data file for temperature:
 .B clm2cdf
 -units celsius -descr temperature temp grid.bin tmp.clm tmp.nc
-.TP
-Create data file for temperature using JSON metafile:
-.B clm2cdf
--metafile tmp.clm.json tmp.nc
 .PP
 .SH EXIT STATUS
 .B clm2cdf

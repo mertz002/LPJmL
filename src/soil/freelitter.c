@@ -20,7 +20,11 @@ void freelitter(Litter *litter /**< pointer to litter data */
                )
 {
   if(litter->n)
-    free(litter->item);
+  {
+    free(litter->ag);
+    free(litter->bg); 
+  }
   litter->n=0;
-  litter->item=NULL;
+  litter->ag=NULL;
+  litter->bg=NULL;
 } /* of 'freelitter' */

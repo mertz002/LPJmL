@@ -17,24 +17,22 @@
 
 #include "lpj.h"
 
-static int compress(const char *filename,const char *compress_cmd)
+static int compress(const char *filename)
 {
   int rc;
   char *cmd,*newfile;
   newfile=stripsuffix(filename);
   if(newfile==NULL)
     return TRUE;
-  cmd=malloc(strlen(newfile)+strlen(compress_cmd)+2);
+  cmd=malloc(strlen(newfile)+strlen("gzip -f")+2);
   if(cmd==NULL)
   {
     free(newfile);
     return TRUE;
   }
-  strcat(strcat(strcpy(cmd,compress_cmd)," "),newfile);
-  rc=system(cmd);
-  if(rc)
-    fprintf(stderr,"ERROR250: Cannot compress output '%s', file not compressed.\n",newfile);
+  strcat(strcpy(cmd,"gzip -f "),newfile);
   free(newfile);
+  rc=system(cmd);
   free(cmd);
   return rc;
 } /* of 'compress' */
@@ -47,24 +45,63 @@ void fcloseoutput(Outputfile *output,  /**< Output file array */
   for(i=0;i<output->n;i++)
     if(output->files[i].isopen)  /* output file is open? */
     {
-      if(isroot(*config) && !output->files[i].oneyear)
+#ifdef USE_MPI
+      switch(output->method)
       {
-        switch(output->files[i].fmt)
-        {
-          case RAW: case TXT:
-            fclose(output->files[i].fp.file);
-            break;
-          case CDF:
-            close_netcdf(&output->files[i].fp.cdf);
-            break;
-        }
-        if(output->files[i].compress)
-          compress(output->files[i].filename,config->compress_cmd);
+        case LPJ_MPI2:
+          MPI_File_close(&output->files[i].fp.mpi_file);
+          if(output->files[i].compress)
+          {
+            MPI_Barrier(config->comm); 
+            if(isroot(*config))
+              compress(output->files[i].filename);
+          }
+          break;
+        case LPJ_GATHER:
+          if(isroot(*config) && !output->files[i].oneyear)
+          {
+            switch(output->files[i].fmt)
+            {
+              case RAW: case TXT:
+                fclose(output->files[i].fp.file);
+                break;
+              case CDF:
+                close_netcdf(&output->files[i].fp.cdf);
+                break;
+            }
+            if(output->files[i].compress)
+              compress(output->files[i].filename);
+          }
+          break;
+      } /* of switch */
+#else
+      if(output->method==LPJ_FILES && !output->files[i].oneyear)
+      {
+         switch(output->files[i].fmt)
+         {
+           case RAW: case TXT: case CLM:
+             fclose(output->files[i].fp.file);
+             break;
+           case CDF:
+             close_netcdf(&output->files[i].fp.cdf);
+             break;
+         } /* of switch */
+         if(output->files[i].compress)
+           compress(output->files[i].filename);
       }
+#endif
     }
 #ifdef USE_MPI
-  free(output->counts);
-  free(output->offsets);
+  if(output->method!=LPJ_MPI2)
+  {
+    free(output->counts);
+    free(output->offsets);
+    if(output->method==LPJ_SOCKET && isroot(*config) && output->socket!=NULL)
+      close_socket(output->socket);
+  }
+#else
+  if(output->method==LPJ_SOCKET && output->socket!=NULL)
+    close_socket(output->socket);
 #endif
   free(output->files);
   freecoordarray(output->index);

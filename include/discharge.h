@@ -39,14 +39,10 @@ typedef struct
   Real dmass_lake_max;
   Real dmass_river;
   Real dmass_sum;         /**< sum of dmass_lake, dmass_new, dmass_queue (m3) */
-#ifdef IMAGE
-  Real dmass_gw;          /**< groundwater reservoir */
-#endif
+  Real dmass_gw;
   Real drunoff;           /**< daily runoff (mm) */
   Real dfout;
   Real fout;
-  Real fin_ext;           /**< external flow (dm3/day) */
-  Real afin_ext;          /**< annual sum of external flow (dm3/yr) */
   Real mfin;              /**< pool for all incoming water fluxes into cell, used to close cell water balance in update_monthly and check_fluxes */
   Real mfout;             /**< pool for all water fluxes leaving the cell, used to close cell water balance in update_monthly and check_fluxes */
   Real waterdeficit;
@@ -56,33 +52,22 @@ typedef struct
   Real wd_deficit;        /**< withdrawal demand that can not be fulfilled locally */
   Real wd_neighbour;      /**< sum of withdrawal requests from neighbour cells */
   Real withdrawal;        /**< amount of water withdrawn from river */
-#ifdef IMAGE
-  Real withdrawal_gw;     /**< amount of water withdrawn from groundwater (shallow and aquifer) */
-#endif
+  Real withdrawal_gw;
   Real irrig_unmet;       /**< amount of irrigation water not met by local sources or neighbor cell */
-#ifdef IMAGE
-  int aquifer;            /**< is there an aquifer below this cell? (Later change to year aquifer is expected to be empty or inaccessible) */
-  Real wateruse_wd;       /**< water withdrawal demand for households, industry and livestock. */
-  Real wateruse_fraction; /**<  ratio between consumption and withdrawal, should be between 0 and 1 */
-#endif
   Real wateruse;          /**< water consumption for industry,household and livestock, read from input file if specified in lpjml.conf */
   Queue queue;            /**< Delay queue */
   Real *tfunct;           /**< pointer to the factors of the cell's transfer function */
   int next;               /**< index to outflow cell */
+  Intcoord runoff2ocean_coord;   /**< i,j index in the global grid of the ocean cell where this cells drains into, or -1,-1 for non-coast-cells */
 } Discharge;
 
 typedef struct wateruse *Wateruse;
-typedef struct extflow *Extflow;
 
 /* Declaration of functions */
 
-extern void wateruse(Cell *,int,int,int,const Config *);
+extern void wateruse(Cell *,int,int,const Config *);
 extern void withdrawal_demand(Cell *,const Config *);
-extern void distribute_water(Cell *,int,int,int,const Config *);
+extern void distribute_water(Cell *,int,Bool,int,int);
 extern Real *transfer_function(Real,int *);
-extern Extflow initextflow(const Config *);
-extern Bool getextflow(Extflow,Cell *,int,int);
-extern void freeextflow(Extflow);
-extern Bool getroute(FILE *,Routing *,Bool);
 
 #endif

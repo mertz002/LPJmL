@@ -15,26 +15,14 @@
 #include "lpj.h"
 #include "tree.h"
 
-Stocks fire_tree(Pft *pft,      /**< pointer to tree PFT */
-                 Real *fireprob /**< fire probability */
-                )               /** \return burnt stock (gC/m2,gN/m2) */
+Real fire_tree(Pft *pft,Real *fireprob)
 {
-  Real disturb;
-  Stocks flux;
+  Real disturb,flux;
   Pfttree *tree;
   tree=pft->data;
   disturb=(1-pft->par->resist)**fireprob;
-  flux.carbon=disturb*pft->nind*(tree->ind.leaf.carbon+tree->ind.sapwood.carbon+
-                          tree->ind.heartwood.carbon-tree->ind.debt.carbon+tree->ind.root.carbon+tree->excess_carbon);
-  flux.nitrogen=disturb*pft->nind*(tree->ind.leaf.nitrogen+tree->ind.sapwood.nitrogen+
-                          tree->ind.heartwood.nitrogen-tree->ind.debt.nitrogen+tree->ind.root.nitrogen);
-  flux.nitrogen+=pft->bm_inc.nitrogen*disturb;
-  pft->bm_inc.nitrogen*=(1-disturb);
+  flux=disturb*pft->nind*(tree->ind.leaf+tree->ind.sapwood+
+                          tree->ind.heartwood-tree->ind.debt+tree->ind.root);
   pft->nind*=(1-disturb);
-  /* Include fruits even though fruit trees do not experience fire at the moment. */
-  flux.carbon+=disturb*tree->fruit.carbon;
-  flux.nitrogen+=disturb*tree->fruit.nitrogen;
-  tree->fruit.carbon*=(1-disturb);
-  tree->fruit.nitrogen*=(1-disturb);
   return flux;
 } /* of 'fire_tree' */

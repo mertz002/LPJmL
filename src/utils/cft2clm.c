@@ -19,6 +19,7 @@
 #define NYEAR 306
 #define FIRSTYEAR 1700 
 
+#define CFT2CLM_VERSION "1.0.003"
 #define USAGE "Usage: %s [-h] [-swap] [-nbands n] [-firstyear s] [-nyear y] [-lastyear e] cftfile outfile\n"
 
 int main(int argc,char **argv)
@@ -44,9 +45,8 @@ int main(int argc,char **argv)
     {
       if(!strcmp(argv[i],"-h"))
       {
-        printf("%s (" __DATE__ ") - adds header to cftfile for LPJmL version "LPJ_VERSION "\n\n",argv[0]);
+        printf("%s " CFT2CLM_VERSION " (" __DATE__ ") - adds header to cftfile for lpj C version\n",argv[0]);
         printf(USAGE
-               "\nArguments:\n"
                "-h           print this help text\n" 
                "-swap        change byte order in cftfile\n"
                "-nbands n    number of bands, default is %d\n"
@@ -54,9 +54,7 @@ int main(int argc,char **argv)
                "-lastyear e  last year, default is %d\n"
                "-nyear y     number of years, default is %d\n"
                "cftfile      filename of input cft data file\n"
-               "outfile      filename of output cft data file\n\n"
-               "(C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file\n",
-               argv[0],NBAND,FIRSTYEAR,FIRSTYEAR+NYEAR-1,NYEAR);
+               "outfile      filename of output cft data file\n",argv[0],NBAND,FIRSTYEAR,FIRSTYEAR+NYEAR-1,NYEAR);
         return EXIT_SUCCESS;
       }
       else if(!strcmp(argv[i],"-swap"))
@@ -145,7 +143,7 @@ int main(int argc,char **argv)
   fstat(fileno(ifile),&filestat);
   n=filestat.st_size/sizeof(short)/header.nyear;
   if(filestat.st_size % (sizeof(short)*header.nyear*header.nbands))
-    fprintf(stderr,"Warning: File size is not multiple of nbands * nyear\n"); 
+    fprintf(stderr,"Warning: File size is multiple of nbands * nyear\n"); 
   printf("Number of cells: %d\n",n/header.nbands);
   ofile=fopen(argv[i+1],"wb");
   if(ofile==NULL)

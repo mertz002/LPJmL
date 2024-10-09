@@ -15,21 +15,20 @@
 
 #include "lpj.h"
 
-#if defined IMAGE && defined COUPLED
+#ifdef IMAGE
 
 void monthlyoutput_image(Output *output,
                          const Climate *climate, /**< climate data */
                          int cell,               /**< index of cell */
-                         int month,              /**< month (0..11) */
-                         const Config *config    /**< LPJml configuration */
+                         int month               /**< month (0..11) */
                         )
 {
-  getoutput(output,TEMP_IMAGE,config)+=(getcelltemp(climate,cell))[month];
-  getoutput(output,PREC_IMAGE,config)+=(getcellprec(climate,cell))[month];
+  output->mtemp_image=(getcelltemp(climate,cell))[month];
+  output->mprec_image=(getcellprec(climate,cell))[month];
   if(climate->data.sun!=NULL)
-    getoutput(output,SUN_IMAGE,config)+=(getcellsun(climate,cell))[month];
+    output->msun_image=(getcellsun(climate,cell))[month];
   if(climate->data.wet!=NULL)
-    getoutput(output,WET_IMAGE,config)+=(getcellwet(climate,cell))[month];
+    output->mwet_image=(getcellwet(climate,cell))[month];
 } /* of 'monthlyoutput_image' */
 
 #endif

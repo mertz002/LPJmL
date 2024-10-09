@@ -31,10 +31,8 @@ static int findname(List *list,const char *s)
   return NOT_FOUND;
 } /* of 'findname' */
 
-#define checkptr(ptr) if(ptr==NULL) { printallocerr(#ptr); return; }
-
 void fprintincludes(FILE *out,                 /**< pointer to text file */
-                    const char *filename,      /**< configuration filename */
+                    const char *dflt_filename, /**< default name of configuration file */
                     int argc,                  /**< number of arguments */
                     char **argv                /**< argument vector  */
                    )
@@ -42,6 +40,7 @@ void fprintincludes(FILE *out,                 /**< pointer to text file */
 {
   char *cmd,*lpjpath,*lpjinc,*filter,*env_options;
   char **options;
+  const char *filename;
   Bool iscpp;
   String token;
   const char *incfilename;
@@ -58,7 +57,7 @@ void fprintincludes(FILE *out,                 /**< pointer to text file */
     iscpp=FALSE;
   env_options=getenv(LPJOPTIONS);
   options=newvec(char *,(env_options==NULL) ? argc : argc+1);
-  checkptr(options);
+  check(options);
   dcount=0;
   len=1;
   /* parse command line arguments */
@@ -100,6 +99,11 @@ void fprintincludes(FILE *out,                 /**< pointer to text file */
     else
       break;
   }
+  lpjpath=getenv(LPJCONFIG);
+  if(lpjpath==NULL)
+    filename=(i==argc)  ? dflt_filename : argv[i];
+  else
+    filename=(i==argc)  ? lpjpath : argv[i];
   lpjpath=getenv(LPJROOT);
   if(lpjpath==NULL || !iscpp) /* Is LPJROOT environment variable defined? */
   { /* no */
@@ -108,7 +112,6 @@ void fprintincludes(FILE *out,                 /**< pointer to text file */
   else
   { /* yes, include LPJROOT directory in search path for includes */
     lpjinc=malloc(strlen(lpjpath)+3);
-    checkptr(lpjinc);
     options[dcount++]=strcat(strcpy(lpjinc,"-I"),lpjpath);
     len+=strlen(lpjinc)+1;
   }
@@ -119,7 +122,6 @@ void fprintincludes(FILE *out,                 /**< pointer to text file */
   }
   len+=strlen(filter);
   cmd=malloc(strlen(filename)+len+1);
-  checkptr(cmd);
   strcat(strcpy(cmd,filter)," ");
   /* concatenate options for cpp command */
   for(i=0;i<dcount;i++)
@@ -141,7 +143,7 @@ void fprintincludes(FILE *out,                 /**< pointer to text file */
   }
   initscan(filename);
   free(options);
-  list=newlist(0);
+  list=newlist();
   while(!fscantoken(file,token))
   {
     incfilename=getfilename();

@@ -15,21 +15,17 @@
 #include "lpj.h"
 #include "crop.h"
 
-Real alphaa_crop(const Pft *pft,            /**< pointer to crop PFT */
-                 int UNUSED(with_nitrogen), /**< nitrogen cycle enabled */
-                 int lai_opt                /**< LAImax option */
-                )                           /** \return alpha_a (0..1) */
+Real alphaa_crop(const Pft *pft /**< pointer to PFT data */
+                )               /** \return alpha_a */
 {
   Real laimax;
-  if(lai_opt==LAIMAX_PAR)
-    return pft->par->alphaa;
-  if(pft->stand->cell->ml.manage.laimax==NULL)
-    laimax=0;
+  if(pft->stand->cell->ml.manage.laimax==NULL)                             
+    laimax=0;                                                           
   else
     laimax=pft->stand->cell->ml.manage.laimax[pft->par->id];
   laimax= (laimax<=7) ? laimax : 7;
   /* learning from AgMIP, MAIZE reaches highest intensity level at LAImax=5*/
-  if(!strcmp(pft->par->name,"maize"))
+  if(pft->par->id==MAIZE)
     return min(1,pft->par->alphaa-(0.15*(5-laimax)));
   else
     return pft->par->alphaa-(0.1*(7-laimax));

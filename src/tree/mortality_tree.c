@@ -31,23 +31,25 @@ Bool mortality_tree(Litter *litter,   /**< Litter                              *
                     Pft *pft,         /**< Pointer to pft                      */
                     Real turnover_ind,/**< indivudual turnover                 */
                     Real mtemp_max,   /**< maximum temperature of month (deg C)*/
-                    Bool isdaily,     /**< daily temperature data (TRUE/FALSE) */
-                    const Config *config /**< LPJmL configuration              */
+                    Bool isdaily      /**< daily temperature data (TRUE/FALSE) */
                    )                  /** \return TRUE on death                */
 {
   Real mort,bm_delta,heatstress,nind_kill,mort_max;
   Pfttree *tree;
   tree=pft->data;
-  bm_delta=pft->bm_inc.carbon/pft->nind-turnover_ind;
+  bm_delta=pft->bm_inc/pft->nind-turnover_ind;
   if(bm_delta<0)
-    bm_delta=0;
-  mort_max=pft->par->mort_max;
+   bm_delta=0;
+  if (pft->par->cultivation_type==BIOMASS)
+    mort_max=0.005;
+  else
+    mort_max=pft->par->mort_max;
 
   /* switch off background mortality in case of prescribed land cover */
-  if (pft->stand->prescribe_landcover==LANDCOVERFPC && pft->stand->type->landusetype==NATURAL)
+  if (pft->prescribe_fpc)
     mort = 0.0;
   else
-    mort=mort_max/(1+param.k_mort*bm_delta/tree->ind.leaf.carbon/pft->par->sla);
+    mort=mort_max/(1+param.k_mort*bm_delta/tree->ind.leaf/pft->par->sla);
   if(mtemp_max>((isdaily) ? pft->par->twmax_daily : pft->par->twmax))
   {
     heatstress=tree->gddtw/ramp_gddtw;
@@ -58,11 +60,8 @@ Bool mortality_tree(Litter *litter,   /**< Litter                              *
   else
     heatstress=0;
   nind_kill=(mort>1) ? pft->nind : pft->nind*mort;
-  litter_update_tree(litter,pft,nind_kill,config);
-  pft->bm_inc.nitrogen*=(pft->nind-nind_kill)/pft->nind;
   pft->nind-=nind_kill;
+  litter_update_tree(litter,pft,nind_kill);
   fpc_tree(pft);
-  if(pft->stand->type->landusetype==NATURAL)
-    getoutputindex(&pft->stand->cell->output,PFT_MORT,pft->par->id,config)+=min(mort,1);
   return isneg_tree(pft);
 } /* of 'mortality_tree' */

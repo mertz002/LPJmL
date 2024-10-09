@@ -18,19 +18,24 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#ifdef USE_JSON
 #include <json-c/json.h>
+#endif
 #include "types.h"
 
 Bool fscanrealarray(LPJfile *file,    /**< pointer to LPJ file */
                     Real value[],     /**< real array to read */
-                    int size,         /**< size of array */
+                    int size,         /**< size of aray */
                     const char *key,  /**< name of array */
                     Verbosity verb    /**< verbosity level (NO_ERR,ERR,VERB) */
                    )
 {
   int i;
+#ifdef USE_JSON
   struct json_object *array,*item;
-  if(!json_object_object_get_ex(file,key,&array))
+  if(file->isjson)
+  {
+  if(!json_object_object_get_ex(file->file.obj,key,&array))
   {
     if(verb)
       fprintf(stderr,"ERROR225: Name '%s' for array not found.\n",key);
@@ -45,8 +50,7 @@ Bool fscanrealarray(LPJfile *file,    /**< pointer to LPJ file */
   if(json_object_array_length(array)!=size)
   {
     if(verb)
-      fprintf(stderr,"ERROR227: Size of %s=%zu is not %d.\n",
-              key,json_object_array_length(array),size);
+      fprintf(stderr,"ERROR227: Size of %s is not %d.\n",key,size);
     return TRUE;
   }
   if (verb >= VERB)
@@ -59,7 +63,7 @@ Bool fscanrealarray(LPJfile *file,    /**< pointer to LPJ file */
       if(json_object_get_type(item)!=json_type_int)
       {
         if(verb)
-          fprintf(stderr,"ERROR226: Type of item %d in array %s is not double or int.\n",i,key);
+          fprintf(stderr,"ERROR226: Type of item %d in array %s is not double.\n",i,key);
         return TRUE;
       }
       value[i]=json_object_get_int(item);
@@ -75,5 +79,11 @@ Bool fscanrealarray(LPJfile *file,    /**< pointer to LPJ file */
   }
   if (verb >= VERB)
     printf("]\n");
+  return FALSE;
+  }
+#endif
+  for(i=0;i<size;i++)
+    if(fscanreal(file,value+i,key,FALSE,verb))
+       return TRUE;
   return FALSE;
 } /* of 'fscanrealarray' */ 

@@ -23,7 +23,6 @@ void freecountrypar(Countrypar countrypar[], /**< array of country params */
   {
     free(countrypar[i].name);
     free(countrypar[i].laimax_cft);
-    free(countrypar[i].k_est);
   }
   free(countrypar);
 } /* of 'freecountrypar' */

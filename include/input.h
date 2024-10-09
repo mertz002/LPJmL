@@ -22,18 +22,13 @@ typedef struct
   Climate *climate;
   Landuse landuse;
   Wateruse wateruse;
-#ifdef IMAGE
-  Wateruse wateruse_wd;
-#endif
   Popdens popdens;
-  Human_ignition human_ignition;
-  Extflow extflow;
   Landcover landcover;
 } Input;
 
 /* Declaration of functions */
 
-extern Bool initinput(Input *,const Cell *,int,Config *);
-extern void freeinput(Input,const Config *);
+extern Bool initinput(Input *,const Cell *,int,int,const Config *);
+extern void freeinput(Input,Bool);
 
 #endif

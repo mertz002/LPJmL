@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include "types.h"
 #include "swap.h"
-#include "errmsg.h"
 #include "queue.h"
 
 struct queue
@@ -77,10 +76,7 @@ Queue freadqueue(FILE *file, /**< pointer to binary file */
   Queue queue;
   queue=new(struct queue);
   if(queue==NULL)
-  {
-    printallocerr("queue");
     return NULL;
-  }
   if(freadint1(&queue->size,swap,file)!=1)
   {
     free(queue);
@@ -93,15 +89,12 @@ Queue freadqueue(FILE *file, /**< pointer to binary file */
   }
   if(queue->first<0 || queue->first>=queue->size)
   {
-    fprintf(stderr,"ERROR253: Invalid first pointer %d in queue, must be in [0,%d].\n",
-            queue->first,queue->size-1);
     free(queue);
     return NULL;
   }
   queue->data=newvec(Real,queue->size);
   if(queue->data==NULL)
   {
-    printallocerr("queue");
     free(queue);
     return NULL;
   }

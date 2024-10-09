@@ -27,8 +27,7 @@
 void prdaily(Real dval_prec[],  /**< Daily precipitation array (mm)  */
              int ndaymonth,     /**< number of days in month */
              Real mval,         /**< total rainfall (mm) for month */
-             Real mval_wet,     /**< expected number of rain days for month */
-             Seed seed          /**< seed for random generator */
+             Real mval_wet      /**< expected number of rain days for month */
              )                  /** \return void */
 {
   int d;
@@ -75,11 +74,11 @@ void prdaily(Real dval_prec[],  /**< Daily precipitation array (mm)  */
         * parameter values (c1,c2) for an exponential distribution---------
         **/
 
-        if (erand48(seed)>prob)
+        if (drand48()>prob) 
           dval_prec[d]=0.0;
         else 
         {
-          dval_prec[d]=pow(-log(erand48(seed)),c2)*mprec*c1;
+          dval_prec[d]=pow(-log(drand48()),c2)*mprec*c1;
           if (dval_prec[d]<0.1) 
             dval_prec[d]=0.0;
           mprec_sum+=dval_prec[d];

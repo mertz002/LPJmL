@@ -21,7 +21,7 @@ OBJS    = swap.$O freadheader.$O coord.$O openinputfile.$O\
           openrestart.$O fbanner.$O getdir.$O freadanyheader.$O\
           getpath.$O getuser.$O gethost.$O failonerror.$O\
           addpath.$O frepeatch.$O isabspath.$O mpi_write.$O\
-          printflags.$O getfilesize.$O enablefpe.$O getfilesizep.$O\
+          printflags.$O getfilesize.$O enablefpe.$O\
           strippath.$O diskfree.$O fprintintf.$O freadrestartheader.$O\
           fwriteheader.$O getcounts.$O getfiledate.$O fscanint.$O\
           iserror.$O mpi_write_txt.$O mkfilename.$O stripsuffix.$O\
@@ -31,12 +31,7 @@ OBJS    = swap.$O freadheader.$O coord.$O openinputfile.$O\
           catstrvec.$O strdate.$O openmetafile.$O fscansize.$O fscanfcns.$O\
           fscaninteof.$O fputprintable.$O fscanrealarray.$O fscanstruct.$O\
           fscanarray.$O fscanarrayindex.$O fscanbool.$O iskeydefined.$O\
-          isboolean.$O fscanreal01.$O fscankeywords.$O isstring.$O\
-          sprinttimestep.$O fscantimestep.$O isnull.$O fwriterestartheader.$O\
-          getfilefrommeta.$O isint.$O parse_json.$O closeconfig.$O isdir.$O\
-          fscanmap.$O fprintjson.$O mrun.$O fscanintarray.$O cmpmap.$O\
-          hasanysuffix.$O fprintattrs.$O fscanattrs.$O mergeattrs.$O\
-          freadheaderid.$O newarray.$O
+          isboolean.$O
 
 INC     = ../../include
 LIBDIR  = ../../lib
@@ -48,7 +43,7 @@ HDRS    = $(INC)/buffer.h $(INC)/coord.h $(INC)/lpj.h\
           $(INC)/errmsg.h $(INC)/numeric.h $(INC)/channel.h\
           $(INC)/conf.h $(INC)/swap.h $(INC)/soilpar.h\
           $(INC)/list.h $(INC)/cell.h $(INC)/units.h\
-          $(INC)/config.h $(INC)/queue.h $(INC)/output.h $(INC)/coupler.h
+          $(INC)/config.h $(INC)/queue.h $(INC)/output.h
 
 
 $(LIBDIR)/$(LIB): $(OBJS)

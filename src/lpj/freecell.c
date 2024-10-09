@@ -16,15 +16,12 @@
 
 void freecell(Cell *cell,        /**< Pointer to cell */
               int npft,          /**< number of natural PFTs */
-              const Config *config /**< LPjmL configuration */
+              Bool river_routing /**< river routing enabled (TRUE/FALSE) */
              )
 {
   freemanage(&cell->ml.manage,npft);
-  if(config->river_routing)
+  if(river_routing)
     freequeue(cell->discharge.queue);
-#if defined IMAGE && defined COUPLED
-  free(cell->pft_harvest);
-#endif
   if(!cell->skip)
   {
     while(!isempty(cell->standlist))

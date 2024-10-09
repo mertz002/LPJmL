@@ -16,7 +16,7 @@
 
 #include "lpj.h"
 
-void initconfig(Config *config /**< LPJmL configuration */
+void initconfig(Config *config /**< LPJmL configuration filename */
                )
 {
   /* setup for sequential version */

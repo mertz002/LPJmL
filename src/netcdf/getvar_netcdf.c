@@ -26,20 +26,18 @@
 Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
                    const char *filename, /**< filename */
                    const char *var,      /**< variable name or NULL */
-                   const char *var_units,/**< unit of variable or NULL */
                    const char *units,    /**< units or NULL*/
                    const Config *config  /**< LPJ configuration */
                   )                      /** \return TRUE on error */
 {
 #if defined(USE_NETCDF) || defined(USE_NETCDF4)
-  int i,nvars,rc,ndims;
+  int i,nvars,rc;
   char name[NC_MAX_NAME+1];
   nc_type type;
 #ifdef USE_UDUNITS
   char *fromstr,*newstr;
   size_t len;
   utUnit from,to;
-  Bool isprec;
 #endif
   float f;
   double d;
@@ -49,14 +47,10 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
     for(i=0;i<nvars;i++)
     {
       nc_inq_varname(file->ncid,i,name);
-      if(strcmp(name,LON_NAME) && strcmp(name,LON_STANDARD_NAME) && strcmp(name,LAT_NAME) && strcmp(name,LAT_STANDARD_NAME) && strcmp(name,TIME_NAME) && strcmp(name,PFT_NAME) && strcmp(name,DEPTH_NAME) && strcmp(name,BNDS_NAME))
+      if(strcmp(name,LON_NAME) && strcmp(name,LAT_NAME) && strcmp(name,TIME_NAME) && strcmp(name,"NamePFT"))
       {
-        nc_inq_varndims(file->ncid,i,&ndims);
-        if(ndims>1)
-        {
-          file->varid=i;
-          break;
-        }
+        file->varid=i;
+        break;
       }
     }
     if(i==nvars)
@@ -73,7 +67,7 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
     return TRUE;
   }
 #ifdef USE_UDUNITS
-  if(units==NULL || (nc_inq_attlen(file->ncid,file->varid,"units",&len) && var_units==NULL))
+  if(units==NULL || nc_inq_attlen(file->ncid,file->varid,"units",&len))
   {
     file->slope=1;
     file->intercept=0;
@@ -89,62 +83,23 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
     }
     else
     {
-      if(var_units!=NULL)
+
+      fromstr=malloc(len+1);
+      if(fromstr==NULL)
       {
-        fromstr=strdup(var_units);
-        if(fromstr==NULL)
-        {
-          utTerm();
-          printallocerr("fromstr");
-          return TRUE;
-        }
-        if(isroot(*config) && !nc_inq_attlen(file->ncid,file->varid,"units",&len))
-        {
-          newstr=malloc(len+1);
-          if(newstr==NULL)
-          {
-            free(fromstr);
-            utTerm();
-            printallocerr("fromstr");
-            return TRUE;
-          }
-          nc_get_att_text(file->ncid,file->varid,"units",newstr);
-          if(strcmp(newstr,fromstr))
-            fprintf(stderr,"WARNING408: Unit '%s' in '%s' differs from unit '%s' in configuration file.\n",
-                    newstr,filename,fromstr);
-          free(newstr);
-        }
+        utTerm();
+        printallocerr("fromstr");
+        return TRUE;
       }
-      else
-      {
-        fromstr=malloc(len+1);
-        if(fromstr==NULL)
-        {
-          utTerm();
-          printallocerr("fromstr");
-          return TRUE;
-        }
-        nc_get_att_text(file->ncid,file->varid,"units",fromstr);
-        fromstr[len]='\0';
-      }
+      nc_get_att_text(file->ncid,file->varid,"units",fromstr);
+      fromstr[len]='\0';
       /* if unit for precipitation is mm convert it to kg/m2/day */
-      if(!strcmp(units,"kg/m2/day"))
-      {
-        isprec=TRUE;
-        if(!isdaily(*file))
-          units="kg/m2/month";
-      }
-      else
-        isprec=FALSE;
+      if(!isdaily(*file) && !strcmp(units,"kg/m2/day"))
+        units="kg/m2/month";
       if(!strcmp(fromstr,"mm")|| !strcmp(fromstr,"mm/day"))
       {
          free(fromstr);
          fromstr=strdup("kg/m2/day");
-         if(fromstr==NULL)
-         {
-           printallocerr("fromstr");
-           return TRUE;
-         }
       }
       if(!strcmp(fromstr,"-"))
       {
@@ -157,19 +112,19 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
         if(utScan(fromstr,&from))
         {
           if(isroot(*config))
-            fprintf(stderr,"WARNING404: Invalid unit %s for variable %s in '%s', assume none.\n",fromstr,(var==NULL) ? name : var,filename);
+            fprintf(stderr,"WARNING404: Invalid unit %s for variable %s in '%s', assume none.\n",fromstr,(var==NULL) ? name : var,filename); 
           file->slope=1;
           file->intercept=0;
         }
         else
         {
-          if(isprec && strstr(units,"day")!=NULL && !isdaily(*file))
+          if(strstr(units,"day")!=NULL && !isdaily(*file))
           {
             newstr=malloc(strlen(units)+3);
             if(newstr==NULL)
             {
               utTerm();
-              printallocerr("newstr");
+              printallocerr("fromstr");
               return TRUE;
             }
             strncpy(newstr,units,strlen(units)-3);
@@ -214,11 +169,7 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
       {
         rc=nc_get_att_int(file->ncid,file->varid,"_FillValue",&file->missing_value.i);
         if(rc)
-        {
-          fprintf(stderr,"WARNING402: Cannot read missing or fill value for %s in '%s', set to %d.\n",
-                  (var==NULL) ? name : var,filename,MISSING_VALUE_INT);
           file->missing_value.i=MISSING_VALUE_INT;
-        }
       }
       file->datatype=LPJ_INT;
       break;
@@ -228,11 +179,7 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
       {
         rc=nc_get_att_float(file->ncid,file->varid,"_FillValue",&file->missing_value.f);
         if(rc)
-        {
-          fprintf(stderr,"WARNING402: Cannot read missing or fill value for %s in '%s', set to %g.\n",
-                  (var==NULL) ? name : var,filename,config->missing_value);
           file->missing_value.f=config->missing_value;
-        }
       }
       file->datatype=LPJ_FLOAT;
       break;
@@ -242,11 +189,7 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
       {
         rc=nc_get_att_short(file->ncid,file->varid,"_FillValue",&file->missing_value.s);
         if(rc)
-        {
-          fprintf(stderr,"WARNING402: Cannot read missing or fill value for %s in '%s', set to %d.\n",
-                  (var==NULL) ? name : var,filename,MISSING_VALUE_SHORT);
           file->missing_value.s=MISSING_VALUE_SHORT;
-        }
       }
       file->datatype=LPJ_SHORT;
       break;
@@ -256,11 +199,7 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
       {
         rc=nc_get_att_double(file->ncid,file->varid,"_FillValue",&file->missing_value.d);
         if(rc)
-        {
-          fprintf(stderr,"WARNING402: Cannot read missing or fill value for %s in '%s', set to %g.\n",
-                  (var==NULL) ? name : var,filename,config->missing_value);
           file->missing_value.d=config->missing_value;
-        }
       }
       file->datatype=LPJ_DOUBLE;
       break;
@@ -270,6 +209,9 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
                 (var==NULL) ? name : var,filename);
       return TRUE;
   }
+  if(rc)
+    fprintf(stderr,"WARNING402: Cannot read missing value of %s in '%s': %s.\n",
+            (var==NULL) ? name : var,filename,nc_strerror(rc));
   if(!nc_inq_atttype(file->ncid,file->varid,"add_offset",&type))
   {
     switch(type)
@@ -277,11 +219,11 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
       case NC_FLOAT:
         nc_get_att_float(file->ncid,file->varid,"add_offset",&f);
         file->intercept+=file->slope*f;
-        break;
+        break; 
       case NC_DOUBLE:
         nc_get_att_double(file->ncid,file->varid,"add_offset",&d);
         file->intercept+=file->slope*d;
-        break;
+        break; 
     }
   }
   if(!nc_inq_atttype(file->ncid,file->varid,"scale_factor",&type))
@@ -291,11 +233,11 @@ Bool getvar_netcdf(Climatefile *file,    /**< climate data file */
       case NC_FLOAT:
         nc_get_att_float(file->ncid,file->varid,"scale_factor",&f);
         file->slope*=f;
-        break;
+        break; 
       case NC_DOUBLE:
         nc_get_att_double(file->ncid,file->varid,"scale_factor",&d);
         file->slope*=d;
-        break;
+        break; 
     }
   }
   return FALSE;

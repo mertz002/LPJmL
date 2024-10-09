@@ -1,4 +1,4 @@
-.TH cdf2soil 1  "USER COMMANDS"
+.TH cdf2soil 1  "November 21, 2018" "version 1.0.001" "USER COMMANDS"
 .SH NAME
 cdf2soil \- convert NetCDF file into binary file
 .SH SYNOPSIS
@@ -9,13 +9,13 @@ Program converts NetCDF input data into soil code or binary input data and write
 .SH OPTIONS
 .TP
 \-var name
-variable name in NetCDF file, default is 'stexture'
+variable name in NetCDF file
 .TP
 \-scale factor
-scaling factor for clm grid file. Default is 0.01
+scaling factor for CLM grid file. Default is 0.01
 .TP
 \-float
-write float values in grid clm file, default is short
+write float values in clm file, default is short
 .TP
 \-soilmap
 Use built-in soil map
@@ -31,7 +31,7 @@ filename of soil code data file written
 .SH EXAMPLES
 .TP
 .B cdf2soil
--var soilcode soilcode.nc grid.clm soilcode.bin
+soilcode.nc  -var soil grid.clm soilcode.bin
 .PP
 .SH EXIT STATUS
 .B cdf2soil
@@ -47,4 +47,4 @@ For authors and contributors see AUTHORS file
 (C) Potsdam Institute for Climate Impact Research (PIK), see COPYRIGHT file
 
 .SH SEE ALSO
-cdf2coord(1), cdf2clm(1), cdf2bin(1), clm2cdf(1), bin2cdf(1), country2cdf(1), regridlpj(1), lpjml(1), txt2clm(1), cru2clm(1), clm(5)
+cdf2coord(1), cdf2clm(1), clm2cdf(1), bin2cdf(1), country2cdf(1), regridlpj(1), lpjml(1), txt2clm(1), cru2clm(1), clm(5)

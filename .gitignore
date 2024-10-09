@@ -1,9 +1,3 @@
-.project
-.gitignore
-.cproject
-.settings/
-calc_PHU/tmp/
-
 # Prerequisites
 *.d
 
@@ -69,20 +63,17 @@ core-*
 *.NC4
 *.dat
 *.DAT
-*.swp
-*.tmp
 
 # output files
 *.lpj
 *.bin
-*.err
 
 # processed files
 *.Rdata
 *.rdata
 *.m
 *.N
-#*.csv
+*.csv
 *.CSV
 
 # Common desktop formats
@@ -100,10 +91,6 @@ core-*
 *.ODT
 *.ods
 *.ODS
-
-# compressed files
-*.gz
-*.zip
 
 Makefile.inc
 # binaries
@@ -160,19 +147,10 @@ bin/water_use_input
 bin/cdf2bin
 bin/cvrtclm
 bin/manage2js
-bin/regridirrig
 bin/headersize
-bin/printglobal
-bin/mergeclm
-bin/country2cdf
-bin/binsum
-bin/arr2clm
-bin/regriddrain
-bin/coupler_demo
-bin/cmpbin
-bin/statclm
-bin/drainage2cdf
-bin/cdf2grid
-
-# test build folder
-src/test/build
+/.vs
+*.sln
+*.vcxproj
+*.filters
+*.user
+/LPJmL_4.3/x64
