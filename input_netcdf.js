@@ -32,7 +32,7 @@
     "human_ignition" : { "fmt" : CDF, "var" : "human_ignition", "name" : "cru_netcdf/human_ignition.nc" },
     "popdens" : { "fmt" : CDF, "var" : "popdens", "name" : "cru_netcdf/popdens_HYDE_1901_2010_bi.nc " },
     "co2" : { "fmt" : TXT, "name" : "climatedata/co2_1841-2018.dat" },
-    "lakes": { "fmt": RAW, "var" : "lakefrac", "name": "cru_netcdf/glwd_lakes_and_rivers.bin" },
+    "lakes": { "fmt": CDF, "var" : "lakefrac", "name": "cru_netcdf/glwd_lakes_and_rivers.nc" },
     "wetdays" : { "fmt" : CDF, "var" : "wet", "name" : "climatedata/gpcc_cru09_wet_monthly_1901_2009.nc" },
     "wateruse" : { "fmt" : CDF, "var" : "wateruse", "name" : "cru_netcdf/wateruse_1900_2000.nc" }, /* water consumption for industry, household and livestock */
     "drainage" : { "fmt" : CDF, "var" : "drainage", "name" : "cru_netcdf/drainage.nc" },

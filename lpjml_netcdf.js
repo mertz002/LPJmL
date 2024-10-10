@@ -23,7 +23,8 @@
 #include "include/conf.h" /* include constant definitions */
 
 // #define DAILY_OUTPUT 
-#define FROM_RESTART
+//#define FROM_RESTART
+
 
 {
 
