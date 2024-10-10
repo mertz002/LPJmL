@@ -154,3 +154,4 @@ bin/headersize
 *.filters
 *.user
 /LPJmL_4.3/x64
+*.js
