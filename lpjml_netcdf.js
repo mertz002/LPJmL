@@ -92,6 +92,7 @@
 #define SUFFIX "pft.nc"
 #endif
 
+
 #ifdef FROM_RESTART
 
 "global_netcdf" : false,  /* global NetCDF grid (TRUE/FALSE) */
