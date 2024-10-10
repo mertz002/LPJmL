@@ -1,0 +1,12 @@
+module purge
+module load shared slurm
+module load gcc
+module load mpich/gcc
+module load netcdf/gcc/64/4.6.1
+module load udunits/gcc/64/2.2.25
+module load 2023
+module load json-c/0.16-GCCcore-12.3.0
+
+
+make clean
+make all
